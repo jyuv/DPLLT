@@ -69,7 +69,7 @@ class Func(Atom):
             self.args = [args]
 
     def __str__(self):
-        args_str = ', '.join([str(arg for arg in self.args)])
+        args_str = ', '.join([str(arg) for arg in self.args])
         return "{0}({1})".format(self.name, args_str)
 
     def __eq__(self, other):
