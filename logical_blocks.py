@@ -60,7 +60,7 @@ class Var(Atom):
 
 class Func(Atom):
     def __init__(self, name: str,
-                 args: Union[Func, Var, Iterable[Union[Func, Var]]]):
+                 args: Union[Func, Var, Iterable[Union[Func, Var, Negate]]]):
         self.name = name
 
         if isinstance(args, Iterable):
@@ -83,7 +83,7 @@ class Func(Atom):
         return hash(tuple([self.name] + list(self.args)))
 
     def is_literal(self) -> bool:
-        return False
+        return True
 
     def negate(self):
         return Negate(self)
@@ -120,7 +120,7 @@ class NEqual(Atom):
         self.right = right
 
     def __str__(self):
-        return str(self.left) != str(self.right)
+        return str(self.left) + " != " + str(self.right)
 
     def __eq__(self, other):
         if isinstance(other, NEqual):
