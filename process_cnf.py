@@ -56,6 +56,43 @@ def _create_literals_mapping(literals: Set[Atom]) -> Dict[Atom, int]:
     return mapping
 
 
+def _remove_negations_in_eqs_helper(node):
+    if isinstance(node, Equal) or isinstance(node, NEqual):
+        num_of_negs = 0
+        if isinstance(node.left, Negate):
+            node.left = node.left.item
+            num_of_negs += 1
+        if isinstance(node.right, Negate):
+            node.right = node.right.item
+            num_of_negs += 1
+
+        if num_of_negs % 2 == 1:
+            if isinstance(node, Equal):
+                return NEqual(node.left, node.right)
+            else:
+                return Equal(node.left, node.right)
+        else:
+            return node
+
+    elif node.is_literal():
+        return node
+    elif isinstance(node, BinaryOp):
+        left = _remove_negations_in_eqs_helper(node.left)
+        right = _remove_negations_in_eqs_helper(node.right)
+        node.left = left
+        node.right = right
+        return node
+    elif isinstance(node, UnaryOp):
+        return _remove_negations_in_eqs_helper(node)
+
+
+def _remove_negations_in_eqs(cnf_conjunction):
+    new_clauses = []
+    for clause in cnf_conjunction:
+        new_clauses.append(_remove_negations_in_eqs_helper(clause))
+    return new_clauses
+
+
 def cnf_conjunction_to_ints(cnf_conjunction: List[Atom]):
     literals = set()
     for clause in cnf_conjunction:
@@ -75,6 +112,7 @@ def cnf_conjunction_to_ints(cnf_conjunction: List[Atom]):
 
 def to_abstract_cnf_conjunction(raw_formula):
     cnf_conjunction = tseitin_transform(raw_formula)
+    cnf_conjunction = _remove_negations_in_eqs(cnf_conjunction)
     int_cnf_formula, lit_to_int = cnf_conjunction_to_ints(cnf_conjunction)
 
     # remove trivial clauses
