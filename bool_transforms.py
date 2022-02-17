@@ -1,6 +1,6 @@
 from __future__ import annotations
-from logical_blocks import Atom, Var, Equiv, Imply, BinaryOp, UnaryOp,\
-    Negate, Or, And
+from logical_blocks import Atom, Var, Equiv, Imply, BinaryOp, UnaryOp, \
+    Negate, Or, And, NEqual, Equal, Func
 
 
 def _reduce_to_basic(node: Atom) -> Atom:
@@ -40,6 +40,11 @@ def _nnf_to_cnf(node: Atom) -> Atom:
             node.right = _nnf_to_cnf(node.right)
         elif isinstance(node, UnaryOp):
             node.item = _nnf_to_cnf(node.item)
+    elif isinstance(node, Negate):
+        if isinstance(node.item, Equal):
+            return NEqual(node.item.left, node.item.right)
+        elif isinstance(node.item, NEqual):
+            return Equal(node.item.left, node.item.right)
     return node
 
 
@@ -52,13 +57,14 @@ def to_cnf(node: Atom) -> Atom:
 
 
 class DummyVarsTracker:
-    def __init__(self):
+    def __init__(self, init_name="#G"):
         self.next_dummy_id = 0
         self.dummy_map = dict()
+        self.init_name = init_name
 
     def get_dummy(self, f):
         if f not in self.dummy_map.keys():
-            new_dummy = Var("#G" + str(self.next_dummy_id))
+            new_dummy = Var(self.init_name + str(self.next_dummy_id))
             self.next_dummy_id += 1
             self.dummy_map[f] = new_dummy
         return self.dummy_map[f]
@@ -128,8 +134,51 @@ def _tseitin_helper(f, equivs_conjunction, dummy_tracker):
                                             Negate(dummy_var)))
             _tseitin_helper(f.item, equivs_conjunction, dummy_tracker)
         else:
-            equivs_conjunction.append(Equiv(dummy_tracker.get_dummy(f), f.item))
+            equivs_conjunction.append(Equiv(dummy_tracker.get_dummy(f),
+                                            Negate(f.item)))
+
+
+def _remove_negations_in_args_helper(f, to_add_neqs, dvar_tracker):
+    if isinstance(f, BinaryOp):
+        f.left = _remove_negations_in_args_helper(f.left, to_add_neqs,
+                                                  dvar_tracker)
+        f.right = _remove_negations_in_args_helper(f.right, to_add_neqs,
+                                                   dvar_tracker)
+        return f
+
+    elif isinstance(f, UnaryOp):
+        f.item = _remove_negations_in_args_helper(f.item, to_add_neqs,
+                                                  dvar_tracker)
+        return f
+
+    elif isinstance(f, Func):
+        new_args = []
+        for arg in f.args:
+            if isinstance(arg, Negate):
+                new_var = dvar_tracker.get_dummy(arg)
+                to_add_neqs[NEqual(arg.item, new_var)] = None
+                arg = new_var
+
+            elif isinstance(arg, Func):
+                arg = _remove_negations_in_args_helper(arg, to_add_neqs,
+                                                       dvar_tracker)
+            new_args.append(arg)
+        return Func(f.name, new_args)
+
+    else:
+        return f
+
+
+def _remove_negations_in_args(f):
+    to_add_neqs = dict()  # used as ordered set
+    dummy_var_tracker = DummyVarsTracker(init_name="#N")
+    f = _remove_negations_in_args_helper(f, to_add_neqs, dummy_var_tracker)
+    to_add_neqs = list(to_add_neqs.keys())
+    return f, to_add_neqs
 
 
 def tseitin_transform(f):
-    return [to_cnf(x) for x in _get_tseitin_equivs(f)]
+    f, to_add_neqs = _remove_negations_in_args(f)
+    cnf_conjunction = [to_cnf(x) for x in _get_tseitin_equivs(f)]
+    cnf_conjunction.extend(to_add_neqs)
+    return cnf_conjunction
