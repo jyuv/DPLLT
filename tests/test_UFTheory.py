@@ -45,8 +45,7 @@ def test_case1():  # (f^3(a) = a) & (f^5(a) = a) & (f(a) != a)
     t_solver.process_assignment(-3)
     assert not t_solver.check_t_propagations()
     assert t_solver.is_t_conflict()
-    assert t_solver.analyze_satisfiability() == (ResultCode.UNSAT,
-                                                      {-1, -2, 3})
+    assert t_solver.analyze_satisfiability() == (ResultCode.UNSAT, {-1, -2, 3})
     assert not t_solver.pop_t_propagation()
     assert len(t_solver.active_neqs) == 1
     assert t_solver.cur_assignment == [1, 2, -3]

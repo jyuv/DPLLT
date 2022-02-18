@@ -222,7 +222,7 @@ class UFTheory(object):
                 active_neqs_reps_pairs.add((right_rep, left_rep))
 
         for int_lit in self.unassigned_ints.intersection(self.eqs_neqs_ints):
-            eq_lit = self.int_to_literal[int_lit].left
+            eq_lit = self.int_to_literal[int_lit]
             cur_unassigned_reps = {self.graph.get_rep(x) for x in
                                    (eq_lit.left, eq_lit.right)}
 
@@ -260,8 +260,8 @@ class UFTheory(object):
             if not self.is_t_conflict():  # -> last removed was part of problem
                 problem_core.add(last_removed)
 
-            last_removed = self.cur_assignment[next_assignment_len]
             next_assignment_len -= 1
+            last_removed = self.cur_assignment[next_assignment_len]
 
         return {-lit_int for lit_int in problem_core}
 
