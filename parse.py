@@ -29,17 +29,21 @@ class TokenType(Enum):
     L_PARENTHESES = 5
     R_PARENTHESES = 6
     ARG_DELIMITER = 7
+    NUM = 8
+    NUM_ARRAY = 9
 
 
 VALID_LEFT_INPUT_TYPES = [TokenType.VAR, TokenType.FUNCTION,
-                          TokenType.R_PARENTHESES]
+                          TokenType.R_PARENTHESES, TokenType.NUM_ARRAY]
 VALID_RIGHT_INPUT_TYPES = [TokenType.VAR, TokenType.FUNCTION,
-                           TokenType.L_PARENTHESES, TokenType.UNARY_OP]
+                           TokenType.L_PARENTHESES, TokenType.UNARY_OP,
+                           TokenType.NUM]
 
+INEQUALITIES_OPS_TEXTS = [">=", "<"]
 
 @dataclass
 class Token:
-    name: str
+    text: str
     token_type: TokenType
 
 
@@ -69,6 +73,23 @@ class Tokenizer:
                         break
                     else:
                         self.tokens.append(Token(atom_name, TokenType.VAR))
+                        break
+
+            elif cur_char.isdecimal():
+                num_str = cur_char
+                if (i+1) >= self.len_text:
+                    self.tokens.append(Token(num_str, TokenType.NUM))
+
+                while (i + 1) < self.len_text:
+                    if self.text[i+1].isdecimal():
+                        num_str += self.text[i+1]
+                        i += 1
+
+                    elif self.text[i+1].isalpha():
+                        raise ValueError()
+
+                    else:
+                        self.tokens.append(Token(num_str, TokenType.NUM))
                         break
 
             elif cur_char == '(':
@@ -111,6 +132,26 @@ class Tokenizer:
                 if ((i + 1) < self.len_text) and (self.text[i + 1] == '>'):
                     i += 1
                     self.tokens.append(Token("->", TokenType.BINARY_OP))
+
+                elif ((i + 1) < self.len_text) and\
+                        (self.text[i + 1].isdecimal()):
+                    num_str = cur_char + self.text[i+1]
+                    i += 1
+
+                    if (i + 1) >= self.len_text:
+                        self.tokens.append(Token(num_str, TokenType.NUM))
+
+                    while (i + 1) < self.len_text:
+                        if self.text[i + 1].isdecimal():
+                            num_str += self.text[i + 1]
+                            i += 1
+
+                        elif self.text[i + 1].isalpha():
+                            raise ValueError()
+
+                        else:
+                            self.tokens.append(Token(num_str, TokenType.NUM))
+
                 else:
                     error_msg = "Illegal combination of chars: {0}".format(
                         self.text[i:i + 2])
@@ -119,7 +160,11 @@ class Tokenizer:
             elif cur_char == ",":
                 self.tokens.append(Token(",", TokenType.ARG_DELIMITER))
 
-            # Todo: Maybe Add Later +- for and numbers for TQ theory processing
+            elif cur_char == "[":
+                end_id = self.text.find("]", i)
+                token_content = self.text[i:end_id + 1]
+                self.tokens.append(Token(token_content, TokenType.NUM_ARRAY))
+                i += len(token_content) - 1
 
             else:
                 raise ValueError()
@@ -140,10 +185,11 @@ class Parser:
         self._check_delimiter_validity()
         self._check_parentheses_validity()
         self._check_ops_inputs_validity()
+        self._check_arrays_validity()
 
     def _check_parentheses_balance(self):
-        parentheses_text = "".join([x.name for x in self.tokenizer.tokens if
-                                    x.name in '()'])
+        parentheses_text = "".join([x.text for x in self.tokenizer.tokens if
+                                    x.text in '()'])
 
         queue = []
         for p in parentheses_text:
@@ -159,7 +205,6 @@ class Parser:
         is_already_unary_op_queue, is_already_unary_op = [], False
         is_already_binary_op_queue, is_already_binary_op = [], False
         many_ops_error_msg = "> 1 op in a single parentheses makes term vague"
-
 
         prev_token_type = None
 
@@ -220,6 +265,25 @@ class Parser:
                 if is_on_edge or (tokens[i - 1].token_type not in VALID_LEFT_INPUT_TYPES)\
                         or (tokens[i + 1].token_type not in VALID_RIGHT_INPUT_TYPES):
                     raise ValueError()
+
+    def _check_arrays_validity(self):
+        def is_number(text):
+            if text.isdecimal():
+                return True
+            elif len(text) > 1 and text[0] == "-" and text[1:].isdecimal():
+                return True
+            return False
+
+        for token in self.tokenizer.tokens:
+            if token.token_type == TokenType.NUM_ARRAY:
+                content_items = token.text[1:-1].split(",")
+
+                if len(content_items) == 0:
+                    raise ValueError()
+
+                for c_item in content_items:
+                    if not is_number(c_item):
+                        raise ValueError()
 
     def _get_levels_map(self):
         levels_ops_map = defaultdict(list)
@@ -292,7 +356,7 @@ class Parser:
             args_atoms.append(self._helper(function_level + 1, arg_bounds))
             arg_lbound = arg_rbound + 2
 
-        function_name = function_root.name
+        function_name = function_root.text
         inner_item = Func(function_name, args_atoms)
         return inner_item
 
@@ -309,7 +373,7 @@ class Parser:
         next_token = self.tokenizer.tokens[loc]
 
         if next_token.token_type == TokenType.VAR:
-            inner_item = Var(next_token.name)
+            inner_item = Var(next_token.text)
 
         elif next_token.token_type == TokenType.FUNCTION:
             inner_item = self._process_function(loc, level)
@@ -321,7 +385,7 @@ class Parser:
         elif next_token.token_type == TokenType.UNARY_OP:
             new_bounds = (loc + 1, parent_bounds[1])
             inner_inner_item = self._helper(level, new_bounds)
-            inner_item = BLOCKS_MAP[next_token.name](inner_inner_item)
+            inner_item = BLOCKS_MAP[next_token.text](inner_inner_item)
 
         else:
             raise ValueError()
@@ -331,7 +395,7 @@ class Parser:
         prev_token = self.tokenizer.tokens[loc]
 
         if prev_token.token_type == TokenType.VAR:
-            left_item = Var(prev_token.name)
+            left_item = Var(prev_token.text)
 
         elif prev_token.token_type == TokenType.R_PARENTHESES:
             if self.p_map[loc][1]:
@@ -344,7 +408,7 @@ class Parser:
                 left_item = self._helper(level + 1, new_bounds)
 
         else:
-            raise ValueError("Invalid left item: {0}".format(prev_token.name))
+            raise ValueError("Invalid left item: {0}".format(prev_token.text))
 
         return left_item
 
@@ -353,17 +417,31 @@ class Parser:
         if op_token.token_type == TokenType.UNARY_OP:
             inner_item = self._process_right_item(op_loc + 1, op_level,
                                                   cur_bounds)
-            return BLOCKS_MAP[op_token.name](inner_item)
+            return BLOCKS_MAP[op_token.text](inner_item)
 
-        else:  # Binary op
+        elif op_token.text in INEQUALITIES_OPS_TEXTS:
+            if (op_loc <= 0) or (op_loc >= len(self.tokenizer.tokens) - 1):
+                raise ValueError()
+
+            prev_token = self.tokenizer.tokens[op_loc - 1]
+            next_token = self.tokenizer.tokens[op_loc + 1]
+            if prev_token.token_type != TokenType.NUM_ARRAY or\
+                    next_token.token_type != TokenType.NUM:
+                raise ValueError()
+            left_item = np.array([int(x) for x in
+                                  prev_token.text[1:-1].split(",")])
+            right_item = int(next_token.text)
+            return BLOCKS_MAP[op_token.text](left_item, right_item)
+
+        else:  # Binary op which isn't an inequality
             right_item = self._process_right_item(op_loc + 1, op_level,
                                                   cur_bounds)
             left_item = self._process_left_item(op_loc - 1, op_level)
 
-            if op_token.name == "<-":
+            if op_token.text == "<-":
                 left_item, right_item = right_item, left_item
 
-            return BLOCKS_MAP[op_token.name](left_item, right_item)
+            return BLOCKS_MAP[op_token.text](left_item, right_item)
 
     def _helper(self, cur_level, bounds):
         chosen_op_loc = self._get_next_token_loc(cur_level, bounds, kind="ops")
@@ -379,7 +457,7 @@ class Parser:
                 if cur_token.token_type == TokenType.FUNCTION:
                     return self._process_function(token_loc, cur_level)
                 else:
-                    return Var(cur_token.name)
+                    return Var(cur_token.text)
             else:
                 return self._helper(cur_level + 1, bounds)
 

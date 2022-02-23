@@ -1,3 +1,5 @@
+import pytest
+
 from logical_blocks import *
 from parse import Parser
 
@@ -64,6 +66,18 @@ eq3 = Imply(eq2, Imply(eq0, eq1))
 eq4_text = "(!({0})) & ({1})".format(eq1_text, eq3_text)
 eq4 = And(Negate(eq1), eq3)
 
+ineq1_text = "[5,3,-2,1] < 4"
+ineq1 = Less(np.array([5, 3, -2, 1]), 4)
+ineq2_text = "[5,3,-2,1] >= 4"
+ineq2 = Geq(np.array([5, 3, -2, 1]), 4)
+ineq3_text = "[,] < 4"
+ineq4_text = "[1,-12a3] < 4"
+ineq5_text = "[] < 5"
+ineq6_text = "[1] < [2]"
+
+ineq7_text = "([1, 3] < 5) & (a | b)"
+ineq7 = And(Less(np.array([1, 3]), 5), Or(a, b))
+
 
 def test1():
     text = "((!X)&Y)|f(X,Y)"
@@ -107,3 +121,36 @@ def test_eq3():
 
 def test_eq4():
     assert Parser(eq4_text).parse() == eq4
+
+
+def test_array1():
+    assert Parser(ineq1_text).parse() == ineq1
+
+
+def test_array2():
+    assert Parser(ineq2_text).parse() == ineq2
+
+
+def test_array3():
+    with pytest.raises(ValueError):
+        Parser(ineq3_text).parse()
+
+
+def test_array4():
+    with pytest.raises(ValueError):
+        Parser(ineq4_text).parse()
+
+
+def test_array5():
+    with pytest.raises(ValueError):
+        Parser(ineq5_text).parse()
+
+
+def test_array6():
+    with pytest.raises(ValueError):
+        Parser(ineq6_text).parse()
+
+
+def test_array7():
+    assert Parser(ineq7_text).parse() == ineq7
+
