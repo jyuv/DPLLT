@@ -19,7 +19,6 @@ BLOCKS_MAP = {
 
 
 # tokens types: <->, <-, ->, &, |, !, <, >=, =, !=
-# Todo: integrate < and >= and respective input vectors and numbers for tq
 
 class TokenType(Enum):
     BINARY_OP = 1
@@ -40,6 +39,7 @@ VALID_RIGHT_INPUT_TYPES = [TokenType.VAR, TokenType.FUNCTION,
                            TokenType.NUM]
 
 INEQUALITIES_OPS_TEXTS = [">=", "<"]
+
 
 @dataclass
 class Token:
@@ -452,7 +452,7 @@ class Parser:
         else:  # process non-op
             token_loc = self._get_next_token_loc(cur_level, bounds,
                                                  kind="elements")
-            if token_loc:
+            if token_loc is not None:
                 cur_token = self.tokenizer.tokens[token_loc]
                 if cur_token.token_type == TokenType.FUNCTION:
                     return self._process_function(token_loc, cur_level)
