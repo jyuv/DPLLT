@@ -45,7 +45,8 @@ class DPLL:
             clause_id = self.sat_solver.add_clause(clause)
             d_result, suggested_assignment = self.sat_solver.deduce(clause_id)
 
-            if d_result == SATSolver.ResultCode.SAT:
+            if d_result == SATSolver.ResultCode.SAT and\
+                    suggested_assignment is not None:
                 self._assign_literal(suggested_assignment, clause_id)
 
             elif d_result == ResultCode.CONFLICT:
