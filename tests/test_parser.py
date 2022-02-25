@@ -103,6 +103,11 @@ def test4():
     assert Parser(text).parse() == expected_result
 
 
+def test_empty():
+    with pytest.raises(ValueError):
+        Parser("").parse()
+
+
 def test_eq0():
     assert Parser(eq0_text).parse() == eq0
 

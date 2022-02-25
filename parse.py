@@ -51,6 +51,10 @@ class Tokenizer:
     def __init__(self, raw_text: str):
         self.text = raw_text.replace(" ", "")
         self.len_text = len(self.text)
+
+        if self.len_text == 0:
+            raise ValueError("Didn't received symbols at all")
+
         self.tokens = []
         self._create_tokens()
 
