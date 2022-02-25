@@ -1,10 +1,10 @@
 from typing import Union
 from constants import ResultCode
-from logical_blocks import NEqual, Equal, UnaryOp, BinaryOp, Func
+from logical_blocks import NEqual, Equal, UnaryOp, BinaryOp, Func, Atom
 
 
 class PropositionalTheory:
-    def preprocess(self, formula):
+    def preprocess(self, formula: Atom):
         self._check_eqs_neqs_args_validity(formula)
         self._check_funcs_args_validity(formula)
         return formula
