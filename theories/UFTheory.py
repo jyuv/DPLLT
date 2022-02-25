@@ -8,9 +8,9 @@ from typing import List, Union, Set, Dict, Tuple
 from constants import ResultCode
 from logical_blocks import Var, Negate, Func, Equal, NEqual, Atom
 from copy import deepcopy
+from theories.PropositionalTheory import PropositionalTheory
 
 LiteralExpression = Union[Func, Var, Negate, Equal, NEqual]
-EQS_NEQS = Union[Equal, NEqual]
 
 
 class TheoryState(object):
@@ -123,7 +123,7 @@ class CongruenceGraph:
                 self.apply_equality(p_left, p_right)
 
 
-class UFTheory(object):
+class UFTheory(PropositionalTheory):
     def __init__(self):
         self.int_to_literal = None
 
@@ -140,7 +140,7 @@ class UFTheory(object):
         self.assignments_log = None
 
     def preprocess(self, formula: Atom):
-        return formula
+        return super().preprocess(formula)
 
     def _adapt_and_register_map(self, abstraction_map):
         # convert var literal to v = True and Negate(Var) to v != True
@@ -159,7 +159,7 @@ class UFTheory(object):
 
         self.int_to_literal = dict(zip(ints_vars, literals))
 
-    def register_abstraction_map(self, abstraction_map: Dict[int, EQS_NEQS]):
+    def register_abstraction_map(self, abstraction_map: Dict[int, Atom]):
         self._adapt_and_register_map(abstraction_map)
 
         self.graph = CongruenceGraph(self.int_to_literal)
@@ -211,7 +211,7 @@ class UFTheory(object):
             self.assignment_to_state.pop(part_assignment, None)
         self.assignments_log = self.assignments_log[:remove_from_idx + 1]
 
-    def _update_t_propagations(self):
+    def _get_active_neqs_reps_paris(self):
         active_neqs_reps_pairs = set()
         for neq in self.active_neqs:
             left_rep = self.graph.get_rep(neq.left)
@@ -220,6 +220,10 @@ class UFTheory(object):
             if left_rep != right_rep:
                 active_neqs_reps_pairs.add((left_rep, right_rep))
                 active_neqs_reps_pairs.add((right_rep, left_rep))
+        return active_neqs_reps_pairs
+
+    def _update_t_propagations(self):
+        active_neqs_reps_pairs = self._get_active_neqs_reps_paris()
 
         for int_lit in self.unassigned_ints.intersection(self.eqs_neqs_ints):
             eq_lit = self.int_to_literal[int_lit]
@@ -312,7 +316,8 @@ class UFTheory(object):
                 return True
         return False
 
-    def analyze_satisfiability(self) -> Tuple[ResultCode, Union[None, Set[int]]]:
+    def analyze_satisfiability(self) ->\
+            Tuple[ResultCode, Union[None, Set[int]]]:
         if not self.is_t_conflict():
             return ResultCode.SAT, None
 
