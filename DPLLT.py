@@ -75,7 +75,7 @@ class DPLL:
 
     def _confront_with_theory(self, handle_conflict: bool):
         t_result, t_clause = self.theory.analyze_satisfiability()
-        if t_result == ResultCode.CONFLICT:
+        if t_result == ResultCode.UNSAT:
             if handle_conflict:
                 if self._handle_conflict(t_clause) == ResultCode.UNSAT:
                     return ResultCode.UNSAT
@@ -165,9 +165,9 @@ class DPLL:
 
 class DPLLT (DPLL):
     def __init__(self, theory: PropositionalTheory = None):
-        super(DPLLT).__init__()
+        super(DPLLT, self).__init__()
         if theory is not None:
             self.theory = theory
 
     def solve(self, formula):
-        return super().solve(formula, to_abstract=False)
+        return super().solve(formula, to_abstract=True)
