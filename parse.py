@@ -84,17 +84,19 @@ class Tokenizer:
                 if (i+1) >= self.len_text:
                     self.tokens.append(Token(num_str, TokenType.NUM))
 
-                while (i + 1) < self.len_text:
-                    if self.text[i+1].isdecimal():
-                        num_str += self.text[i+1]
-                        i += 1
+                else:
+                    while (i + 1) < self.len_text:
+                        if self.text[i+1].isdecimal():
+                            num_str += self.text[i+1]
+                            i += 1
 
-                    elif self.text[i+1].isalpha():
-                        raise ValueError()
+                        elif self.text[i+1].isalpha():
+                            raise ValueError()
 
-                    else:
-                        self.tokens.append(Token(num_str, TokenType.NUM))
-                        break
+                        else:
+                            break
+                    self.tokens.append(Token(num_str, TokenType.NUM))
+
 
             elif cur_char == '(':
                 self.tokens.append(Token("(", TokenType.L_PARENTHESES))
@@ -115,9 +117,15 @@ class Tokenizer:
             elif cur_char == '<':
                 if ((i + 1) < self.len_text) and (self.text[i + 1] == '-'):
                     i += 1
-                    if ((i + 1) < self.len_text) and (self.text[i + 1] == '>'):
+                    if ((i + 1) < self.len_text) and \
+                            (self.text[i + 1].isdecimal()):
+                        self.tokens.append(Token("<", TokenType.BINARY_OP))
+
+                    elif ((i + 1) < self.len_text) and\
+                            (self.text[i + 1] == '>'):
                         i += 1
                         self.tokens.append(Token("<->", TokenType.BINARY_OP))
+
                     else:
                         self.tokens.append(Token("<-", TokenType.BINARY_OP))
                 else:
@@ -155,6 +163,7 @@ class Tokenizer:
 
                         else:
                             self.tokens.append(Token(num_str, TokenType.NUM))
+                            break
 
                 else:
                     error_msg = "Illegal combination of chars: {0}".format(
@@ -375,6 +384,7 @@ class Parser:
 
     def _process_right_item(self, loc, level, parent_bounds):
         next_token = self.tokenizer.tokens[loc]
+        op_token = self.tokenizer.tokens[loc - 1]
 
         if next_token.token_type == TokenType.VAR:
             inner_item = Var(next_token.text)
@@ -383,7 +393,7 @@ class Parser:
             inner_item = self._process_function(loc, level)
 
         elif next_token.token_type == TokenType.L_PARENTHESES:
-            new_bounds = (loc, self.p_map[loc][2])
+            new_bounds = (loc + 1, self.p_map[loc][2])
             inner_item = self._helper(level + 1, new_bounds)
 
         elif next_token.token_type == TokenType.UNARY_OP:
@@ -391,12 +401,17 @@ class Parser:
             inner_inner_item = self._helper(level, new_bounds)
             inner_item = BLOCKS_MAP[next_token.text](inner_inner_item)
 
+        elif (op_token.text in ["=", "!="]) and\
+                (next_token.token_type == TokenType.NUM):
+            inner_item = int(next_token.text)
+
         else:
-            raise ValueError()
+            raise ValueError(loc)
         return inner_item
 
     def _process_left_item(self, loc, level):
         prev_token = self.tokenizer.tokens[loc]
+        op_token = self.tokenizer.tokens[loc + 1]
 
         if prev_token.token_type == TokenType.VAR:
             left_item = Var(prev_token.text)
@@ -408,9 +423,11 @@ class Parser:
                 left_item = self._process_function(function_root_loc, level)
             else:
                 # process regular ()
-                new_bounds = (self.p_map[loc][2], loc)
+                new_bounds = (self.p_map[loc][2] + 1, loc)
                 left_item = self._helper(level + 1, new_bounds)
 
+        elif op_token.text in ["=", "!="] and prev_token.token_type == TokenType.NUM_ARRAY:
+            left_item = np.array([int(x) for x in prev_token.text[1:-1].split(",")])
         else:
             raise ValueError("Invalid left item: {0}".format(prev_token.text))
 
