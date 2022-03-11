@@ -37,7 +37,10 @@ def _create_literals_mapping(literals: Set[Atom]) -> Dict[Atom, int]:
                                                                        Equal):
             lits_encountered[lit] = None
         elif isinstance(lit, Negate):
-            lits_encountered[lit.item] = None
+            if isinstance(lit.item, Less):
+                lits_encountered[lit.item.negate()] = None
+            else:
+                lits_encountered[lit.item] = None
         elif isinstance(lit, NEqual):
             lits_encountered[Equal(lit.left, lit.right)] = None
         elif isinstance(lit, Less):
@@ -120,4 +123,3 @@ def to_abstract_cnf_conjunction(raw_formula):
                        len({abs(lit) for lit in clause}) == len(clause)]
 
     return int_cnf_formula, {v: k for (k, v) in lit_to_int.items()}
-
