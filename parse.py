@@ -48,17 +48,20 @@ class Token:
 
 
 class Tokenizer:
-    def __init__(self, raw_text: str):
+    def __init__(self):
+        self.tokens = []
+        self.text, self.len_text = "", 0
+
+    def reset(self):
+        self.tokens = []
+        self.text = ""
+        self.len_text = 0
+
+    def tokenize(self, raw_text: str):
+        self.reset()
         self.text = raw_text.replace(" ", "")
         self.len_text = len(self.text)
 
-        if self.len_text == 0:
-            raise ValueError("Didn't received symbols at all")
-
-        self.tokens = []
-        self._create_tokens()
-
-    def _create_tokens(self):
         i = 0
         while i < self.len_text:
             cur_char = self.text[i]
@@ -96,7 +99,6 @@ class Tokenizer:
                         else:
                             break
                     self.tokens.append(Token(num_str, TokenType.NUM))
-
 
             elif cur_char == '(':
                 self.tokens.append(Token("(", TokenType.L_PARENTHESES))
@@ -186,12 +188,11 @@ class Tokenizer:
 
 
 class Parser:
-    def __init__(self, raw_text: str):
+    def __init__(self):
 
-        self.tokenizer = Tokenizer(raw_text)
-        self._check_formula_validity()
-        self.p_map = self._get_parentheses_map()
-        self.levels_map = self._get_levels_map()
+        self.tokenizer = Tokenizer()
+        self.p_map = dict()
+        self.levels_map = dict()
 
     def _check_formula_validity(self):
         self._check_parentheses_balance()
@@ -482,7 +483,16 @@ class Parser:
             else:
                 return self._helper(cur_level + 1, bounds)
 
-    def parse(self):
+    def parse(self, raw_text: str):
+        self.tokenizer.tokenize(raw_text)
+
+        self._check_formula_validity()
+        self.p_map = self._get_parentheses_map()
+        self.levels_map = self._get_levels_map()
+
+        if not self.tokenizer.tokens:
+            return []
+
         cur_level = 0
         bounds = (0, len(self.tokenizer.tokens) - 1)
 

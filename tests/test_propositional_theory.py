@@ -18,51 +18,51 @@ solver = DPLL()
 
 
 def test_eqs_neqs_args1():  # Expect no error raised
-    formula = Parser(str_eqs_neqs_args1).parse()
+    formula = Parser().parse(str_eqs_neqs_args1)
     solver.solve(formula)
 
 
 def test_eqs_neqs_args2():
     with pytest.raises(ValueError):
-        formula = Parser(str_eqs_neqs_args2).parse()
+        formula = Parser().parse(str_eqs_neqs_args2)
         solver.solve(formula)
 
 
 def test_eqs_neqs_args3():
     with pytest.raises(ValueError):
-        formula = Parser(str_eqs_neqs_args3).parse()
+        formula = Parser().parse(str_eqs_neqs_args3)
         solver.solve(formula)
 
 
 def test_eqs_neqs_args4():
     with pytest.raises(ValueError):
-        formula = Parser(str_eqs_neqs_args4).parse()
+        formula = Parser().parse(str_eqs_neqs_args4)
         solver.solve(formula)
 
 
 def test_func_args1():
-    formula = Parser(str_func_args1).parse()
+    formula = Parser().parse(str_func_args1)
     solver.solve(formula)
 
 
 def test_func_args2():
-    formula = Parser(str_func_args2).parse()
+    formula = Parser().parse(str_func_args2)
     solver.solve(formula)
 
 
 def test_func_args3():
     with pytest.raises(ValueError):
-        formula = Parser(str_func_args3).parse()
+        formula = Parser().parse(str_func_args3)
         solver.solve(formula)
 
 
 def test_func_args4():
     with pytest.raises(ValueError):
-        formula = Parser(str_func_args4).parse()
+        formula = Parser().parse(str_func_args4)
         solver.solve(formula)
 
 
 def test_func_args5():
     with pytest.raises(ValueError):
-        formula = Parser(str_func_args5).parse()
+        formula = Parser().parse(str_func_args5)
         solver.solve(formula)
