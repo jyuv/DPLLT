@@ -43,23 +43,24 @@ str_uf4 = "({0}) & (({1}) & (({2}) & (({3}) & (({4}) & (({5}) & (({6})" \
 
 uf_theory = UFTheory()
 solver = DPLLT(uf_theory)
+parser = Parser()
 
 
 def test_uf1():
-    formula = Parser().parse(str_uf1)
+    formula = parser.parse(str_uf1)
     assert solver.solve(formula)[0] == ResultCode.UNSAT
 
 
 def test_uf2():
-    formula = Parser().parse(str_uf2)
+    formula = parser.parse(str_uf2)
     assert solver.solve(formula)[0] == ResultCode.SAT
 
 
 def test_uf3():
-    formula = Parser().parse(str_uf3)
+    formula = parser.parse(str_uf3)
     assert solver.solve(formula)[0] == ResultCode.UNSAT
 
 
 def test_uf4():
-    formula = Parser().parse(str_uf4)
+    formula = parser.parse(str_uf4)
     assert solver.solve(formula)[0] == ResultCode.SAT

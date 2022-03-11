@@ -15,54 +15,55 @@ str_func_args4 = "f(a, f(a, g(d), a | b), c)"
 str_func_args5 = "f(a, !!c)"
 
 solver = DPLL()
+parser = Parser()
 
 
 def test_eqs_neqs_args1():  # Expect no error raised
-    formula = Parser().parse(str_eqs_neqs_args1)
+    formula = parser.parse(str_eqs_neqs_args1)
     solver.solve(formula)
 
 
 def test_eqs_neqs_args2():
     with pytest.raises(ValueError):
-        formula = Parser().parse(str_eqs_neqs_args2)
+        formula = parser.parse(str_eqs_neqs_args2)
         solver.solve(formula)
 
 
 def test_eqs_neqs_args3():
     with pytest.raises(ValueError):
-        formula = Parser().parse(str_eqs_neqs_args3)
+        formula = parser.parse(str_eqs_neqs_args3)
         solver.solve(formula)
 
 
 def test_eqs_neqs_args4():
     with pytest.raises(ValueError):
-        formula = Parser().parse(str_eqs_neqs_args4)
+        formula = parser.parse(str_eqs_neqs_args4)
         solver.solve(formula)
 
 
 def test_func_args1():
-    formula = Parser().parse(str_func_args1)
+    formula = parser.parse(str_func_args1)
     solver.solve(formula)
 
 
 def test_func_args2():
-    formula = Parser().parse(str_func_args2)
+    formula = parser.parse(str_func_args2)
     solver.solve(formula)
 
 
 def test_func_args3():
     with pytest.raises(ValueError):
-        formula = Parser().parse(str_func_args3)
+        formula = parser.parse(str_func_args3)
         solver.solve(formula)
 
 
 def test_func_args4():
     with pytest.raises(ValueError):
-        formula = Parser().parse(str_func_args4)
+        formula = parser.parse(str_func_args4)
         solver.solve(formula)
 
 
 def test_func_args5():
     with pytest.raises(ValueError):
-        formula = Parser().parse(str_func_args5)
+        formula = parser.parse(str_func_args5)
         solver.solve(formula)

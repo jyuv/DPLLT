@@ -78,83 +78,85 @@ ineq6_text = "[1] < [2]"
 ineq7_text = "([1, 3] < 5) & (a | b)"
 ineq7 = And(Less(np.array([1, 3]), 5), Or(a, b))
 
+parser = Parser()
+
 
 def test1():
     text = "((!X)&Y)|f(X,Y)"
     expected_result = Or(And(Negate(X), Y), Func("f", (X, Y)))
-    assert Parser().parse(text) == expected_result
+    assert parser.parse(text) == expected_result
 
 
 def test2():
     text = "a & (!a)"
     expected_result = And(a, neg_a)
-    assert Parser().parse(text) == expected_result
+    assert parser.parse(text) == expected_result
 
 
 def test3():
     text = "a | !b"
     expected_result = Or(a, neg_b)
-    assert Parser().parse(text) == expected_result
+    assert parser.parse(text) == expected_result
 
 
 def test4():
     text = "!!b"
     expected_result = Negate(neg_b)
-    assert Parser().parse(text) == expected_result
+    assert parser.parse(text) == expected_result
 
 
 def test_empty():
-    assert Parser().parse("") == []
+    assert parser.parse("") == []
 
 
 def test_eq0():
-    assert Parser().parse(eq0_text) == eq0
+    assert parser.parse(eq0_text) == eq0
 
 
 def test_eq1():
-    assert Parser().parse(eq1_text) == eq1
+    assert parser.parse(eq1_text) == eq1
 
 
 def test_eq2():
-    assert Parser().parse(eq2_text) == eq2
+    assert parser.parse(eq2_text) == eq2
 
 
 def test_eq3():
-    assert Parser().parse(eq3_text) == eq3
+    assert parser.parse(eq3_text) == eq3
 
 
 def test_eq4():
-    assert Parser().parse(eq4_text) == eq4
+    assert parser.parse(eq4_text) == eq4
 
 
 def test_array1():
-    assert Parser().parse(ineq1_text) == ineq1
+    assert parser.parse(ineq1_text) == ineq1
 
 
 def test_array2():
-    assert Parser().parse(ineq2_text) == ineq2
+    assert parser.parse(ineq2_text) == ineq2
 
 
 def test_array3():
     with pytest.raises(ValueError):
-        Parser().parse(ineq3_text)
+        parser.parse(ineq3_text)
 
 
 def test_array4():
     with pytest.raises(ValueError):
-        Parser().parse(ineq4_text)
+        parser.parse(ineq4_text)
 
 
 def test_array5():
     with pytest.raises(ValueError):
-        Parser().parse(ineq5_text)
+        parser.parse(ineq5_text)
 
 
 def test_array6():
     with pytest.raises(ValueError):
-        Parser().parse(ineq6_text)
+        parser.parse(ineq6_text)
 
 
 def test_array7():
-    assert Parser().parse(ineq7_text) == ineq7
+    assert parser.parse(ineq7_text) == ineq7
 
