@@ -145,7 +145,7 @@ class Geq(Atom):
         self.b = b
 
     def __str__(self):
-        str(self.a) + " >= " + str(self.b)
+        return str(self.a) + " >= " + str(self.b)
 
     def __eq__(self, other):
         if isinstance(other, Geq):
