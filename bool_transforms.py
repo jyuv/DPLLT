@@ -1,6 +1,6 @@
 from __future__ import annotations
 from logical_blocks import Atom, Var, Equiv, Imply, BinaryOp, UnaryOp, \
-    Negate, Or, And, NEqual, Equal, Func
+    Negate, Or, And, NEqual, Equal, Func, Geq, Less
 
 
 def _reduce_to_basic(node: Atom) -> Atom:
@@ -45,6 +45,10 @@ def _nnf_to_cnf(node: Atom) -> Atom:
             return NEqual(node.item.left, node.item.right)
         elif isinstance(node.item, NEqual):
             return Equal(node.item.left, node.item.right)
+        elif isinstance(node.item, Less):
+            return Geq(node.item.a, node.item.b)
+        elif isinstance(node.item, Geq):
+            return Less(node.item.a, node.item.b)
     return node
 
 
