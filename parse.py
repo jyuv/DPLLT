@@ -387,27 +387,27 @@ class Parser:
         op_token = self.tokenizer.tokens[loc - 1]
 
         if next_token.token_type == TokenType.VAR:
-            inner_item = Var(next_token.text)
+            right_item = Var(next_token.text)
 
         elif next_token.token_type == TokenType.FUNCTION:
-            inner_item = self._process_function(loc, level)
+            right_item = self._process_function(loc, level)
 
         elif next_token.token_type == TokenType.L_PARENTHESES:
             new_bounds = (loc + 1, self.p_map[loc][2])
-            inner_item = self._helper(level + 1, new_bounds)
+            right_item = self._helper(level + 1, new_bounds)
 
         elif next_token.token_type == TokenType.UNARY_OP:
             new_bounds = (loc + 1, parent_bounds[1])
             inner_inner_item = self._helper(level, new_bounds)
-            inner_item = BLOCKS_MAP[next_token.text](inner_inner_item)
+            right_item = BLOCKS_MAP[next_token.text](inner_inner_item)
 
         elif (op_token.text in ["=", "!="]) and\
                 (next_token.token_type == TokenType.NUM):
-            inner_item = int(next_token.text)
+            right_item = int(next_token.text)
 
         else:
             raise ValueError(loc)
-        return inner_item
+        return right_item
 
     def _process_left_item(self, loc, level):
         prev_token = self.tokenizer.tokens[loc]
