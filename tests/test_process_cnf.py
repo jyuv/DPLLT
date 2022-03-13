@@ -1,5 +1,8 @@
-from process_cnf import to_abstract_cnf_conjunction
-from logical_blocks import Var, Or, And, Negate, Imply, Equal, NEqual, Func
+import pytest
+
+from bool_transforms.process_cnf import to_abstract_cnf_conjunction
+from parsing.logical_blocks import Var, Negate, Equal, NEqual, Func
+from parsing.parse import Parser
 
 p = Var("p")
 q = Var("q")
@@ -28,96 +31,65 @@ neq_q_n0 = NEqual(q, n0)
 neq_r_n0 = NEqual(r, n0)
 neq_r_n1 = NEqual(r, n1)
 neq_q_n1 = NEqual(q, n1)
+eq_q_r = Equal(q, r)
+neq_q_r = NEqual(q, r)
 
-
-def test_mapping_f1():  # (p & q) || !(q || r)
-    f1 = Or(And(p, q), Negate(Or(q, r)))
-    f1_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(f1))
-    expected_f1_int_format = [{g0}, {neg_g0, g1, g2}, {neg_g1, g0},
-                              {neg_g2, g0}, {neg_g1, p},
-                              {neg_g1, q}, {neg_p, neg_q, g1},
-                              {neg_g2, neg_g3}, {g2, g3},
-                              {neg_g3, q, r}, {neg_q, g3}, {neg_r, g3}]
-
-    assert f1_clauses == expected_f1_int_format
-
-
-def test_mapping_f2():  # !(!(p & q) -> !r)
-    f2 = Negate(Imply(Negate(And(p, q)), neg_r))
-
-    expected_f2_clauses = [{g0}, {neg_g0, neg_g1}, {g1, g0},
-                           {neg_g1, neg_g2, neg_r}, {g2, g1},
-                           {r, g1}, {neg_g2, neg_g3}, {g3, g2}, {neg_g3, p},
-                           {neg_g3, q}, {neg_q, neg_p,  g3}]
-
-    f2_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(f2))
-    assert expected_f2_clauses == f2_clauses
-
-
-def test_mapping_negations_eqs():
-    case_eq_f = And(p, Equal(q, r))
-    expected_eq_clauses = to_lit_conjunction(
-        *to_abstract_cnf_conjunction(case_eq_f))
-
-    case_neq_f = And(p, NEqual(q, r))
-    expected_neq_clauses = to_lit_conjunction(
-        *to_abstract_cnf_conjunction(case_neq_f))
-
-    case1_f = And(p, Equal(neg_q, r))
-    case1_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(case1_f))
-    assert case1_clauses == expected_neq_clauses
-
-    case2_f = And(p, Equal(q, neg_r))
-    case2_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(case2_f))
-    assert case2_clauses == expected_neq_clauses
-
-    case3_f = And(p, Equal(neg_q, neg_r))
-    case3_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(case3_f))
-    assert case3_clauses == expected_eq_clauses
-
-    case4_f = And(p, NEqual(neg_q, r))
-    case4_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(case4_f))
-    assert case4_clauses == expected_eq_clauses
-
-    case5_f = And(p, NEqual(q, neg_r))
-    case5_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(case5_f))
-    assert case5_clauses == expected_eq_clauses
-
-    case6_f = And(p, NEqual(neg_q, neg_r))
-    case6_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(case6_f))
-    assert case6_clauses == expected_neq_clauses
+parser = Parser()
 
 
 def to_lit_conjunction(ints_conjunction, int_to_lit):
     return [{int_to_lit[i] for i in cl} for cl in ints_conjunction]
 
 
-def test_mapping_negations_args():
-    expected_c1_clauses = [{g0}, {neg_g0, p}, {f_q_n0, neg_g0},
-                           {neg_p, Negate(f_q_n0), g0}, {neq_r_n0}]
+formulas_text = ["(p & q) | !(q | r)",
+                 "!((!(p & q)) -> !r)"]
 
-    expected_c2_clauses = [{g0}, {neg_g0, p}, {f_n0_n1, neg_g0},
-                           {neg_p, Negate(f_n0_n1), g0}, {neq_q_n0}, {neq_r_n1}]
+expected_lit_formats = [
+    [{g0}, {neg_g0, g1, g2}, {neg_g1, g0}, {neg_g2, g0}, {neg_g1, p},
+     {neg_g1, q}, {neg_p, neg_q, g1}, {neg_g2, neg_g3}, {g2, g3},
+     {neg_g3, q, r}, {neg_q, g3}, {neg_r, g3}
+     ],
+    [{g0}, {neg_g0, neg_g1}, {g1, g0}, {neg_g1, neg_g2, neg_r}, {g2, g1},
+     {r, g1}, {neg_g2, neg_g3}, {g3, g2}, {neg_g3, p},
+     {neg_g3, q}, {neg_q, neg_p,  g3}
+     ]
+]
 
-    expected_c3_clauses = [{g0}, {neg_g0, p}, {f_f_q_n0_n0, neg_g0},
-                           {neg_p, Negate(f_f_q_n0_n0), g0}, {neq_r_n0}]
 
-    expected_c4_clauses = [{g0}, {neg_g0, p}, {f_f_q_n0_n1, neg_g0},
-                           {neg_p, Negate(f_f_q_n0_n1), g0},
-                           {neq_r_n0}, {neq_q_n1}]
+@pytest.mark.parametrize("formula_text, expected_lit_clauses",
+                         zip(formulas_text, expected_lit_formats),
+                         ids=formulas_text)
+def test_mapping_regular(formula_text, expected_lit_clauses):
+    formula = parser.parse(formula_text)
+    lit_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(formula))
 
-    case1_f = And(p, Func("f", [q, Negate(r)]))
-    case2_f = And(p, Func("f", [Negate(q), Negate(r)]))
+    assert lit_clauses == expected_lit_clauses
 
-    case3_f = And(p, Func("f", [Func("f", [q, Negate(r)]), Negate(r)]))
-    case4_f = And(p, Func("f", [Func("f", [q, Negate(r)]), Negate(q)]))
 
-    c1_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(case1_f))
-    c2_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(case2_f))
-    c3_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(case3_f))
-    c4_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(case4_f))
+clauses_equal_case = [{g0}, {neg_g0, p}, {neg_g0, eq_q_r}, {neg_p, g0, neq_q_r}]
+clauses_nequal_case = [{g0}, {neg_g0, p}, {neg_g0, neq_q_r},
+                       {neg_p, g0, eq_q_r}]
 
-    assert expected_c1_clauses == c1_clauses
-    assert expected_c2_clauses == c2_clauses
-    assert expected_c3_clauses == c3_clauses
-    assert expected_c4_clauses == c4_clauses
+negations_eqs_formulas_texts = ["p & ((!q) = r)",
+                                "p & (q = !r)",
+                                "p & ((!q) = !r)",
+                                "p & ((!q) != r)",
+                                "p & (q != !r)",
+                                "p & ((!q) != !r)"]
+
+negations_expected_lit_clauses = [clauses_nequal_case,
+                                  clauses_nequal_case,
+                                  clauses_equal_case,
+                                  clauses_equal_case,
+                                  clauses_equal_case,
+                                  clauses_nequal_case]
+
+
+@pytest.mark.parametrize("formula_text, expected_lit_clauses",
+                         zip(negations_eqs_formulas_texts,
+                             negations_expected_lit_clauses),
+                         ids=negations_eqs_formulas_texts)
+def test_mapping_negations_eqs(formula_text, expected_lit_clauses):
+    formula = parser.parse(formula_text)
+    lit_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(formula))
+    assert lit_clauses == expected_lit_clauses
