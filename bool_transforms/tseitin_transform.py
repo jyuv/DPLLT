@@ -1,63 +1,7 @@
 from __future__ import annotations
-from logical_blocks import Atom, Var, Equiv, Imply, BinaryOp, UnaryOp, \
-    Negate, Or, And, NEqual, Equal, Func, Geq, Less
-
-
-def _reduce_to_basic(node: Atom) -> Atom:
-    if not node.is_literal():
-        if isinstance(node, Equiv) or isinstance(node, Imply):
-            node = node.to_basic()
-
-        if isinstance(node, BinaryOp):
-            node.left = _reduce_to_basic(node.left)
-            node.right = _reduce_to_basic(node.right)
-
-        elif isinstance(node, UnaryOp):
-            node.item = _reduce_to_basic(node.item)
-    return node
-
-
-def _organize_negations(node: Atom) -> Atom:
-    if not node.is_literal():
-        if isinstance(node, Negate):
-            node = node.item.negate()
-
-        if isinstance(node, BinaryOp):
-            node.left = _organize_negations(node.left)
-            node.right = _organize_negations(node.right)
-        elif isinstance(node, UnaryOp):
-            node = _organize_negations(node)
-    return node
-
-
-def _nnf_to_cnf(node: Atom) -> Atom:
-    if not node.is_literal():
-        if isinstance(node, Or):
-            node = node.cnf_distribute()
-
-        if isinstance(node, BinaryOp):
-            node.left = _nnf_to_cnf(node.left)
-            node.right = _nnf_to_cnf(node.right)
-        elif isinstance(node, UnaryOp):
-            node.item = _nnf_to_cnf(node.item)
-    elif isinstance(node, Negate):
-        if isinstance(node.item, Equal):
-            return NEqual(node.item.left, node.item.right)
-        elif isinstance(node.item, NEqual):
-            return Equal(node.item.left, node.item.right)
-        elif isinstance(node.item, Less):
-            return Geq(node.item.a, node.item.b)
-        elif isinstance(node.item, Geq):
-            return Less(node.item.a, node.item.b)
-    return node
-
-
-def to_nnf(node: Atom) -> Atom:
-    return _organize_negations(_reduce_to_basic(node))
-
-
-def to_cnf(node: Atom) -> Atom:
-    return _nnf_to_cnf((to_nnf(node)))
+from logical_blocks import Var, Equiv, Imply, BinaryOp, UnaryOp, \
+    Negate, Or, And, NEqual, Func
+from bool_transforms.to_cnf import to_cnf
 
 
 class DummyVarsTracker:
@@ -72,35 +16,6 @@ class DummyVarsTracker:
             self.next_dummy_id += 1
             self.dummy_map[f] = new_dummy
         return self.dummy_map[f]
-
-
-def _add_and_cnf(equivs_conjunction, f_rep, left_rep, right_rep):
-    equivs_conjunction.append(Equiv(f_rep, And(left_rep, right_rep)))
-
-
-def _add_or_cnf(equivs_conjunction, f_rep, left_rep, right_rep):
-    equivs_conjunction.append(Equiv(f_rep, Or(left_rep, right_rep)))
-
-
-def _add_equiv_cnf(equivs_conjunction, f_rep, left_rep, right_rep):
-    equivs_conjunction.append(Equiv(f_rep, Equiv(left_rep, right_rep)))
-
-
-def _add_imply_cnf(equivs_conjunction, f_rep, left_rep, right_rep):
-    equivs_conjunction.append(Equiv(f_rep, Imply(left_rep, right_rep)))
-
-
-def _handle_binary(f, equivs_conjunction, f_rep, left_rep, right_rep):
-    if isinstance(f, And):
-        _add_and_cnf(equivs_conjunction, f_rep, left_rep, right_rep)
-    elif isinstance(f, Or):
-        _add_or_cnf(equivs_conjunction, f_rep, left_rep, right_rep)
-    elif isinstance(f, Equiv):
-        _add_equiv_cnf(equivs_conjunction, f_rep, left_rep, right_rep)
-    elif isinstance(f, Imply):
-        _add_imply_cnf(equivs_conjunction, f_rep, left_rep, right_rep)
-    else:
-        raise ValueError("Unrecognized type of f: {0}".format(type(f)))
 
 
 def _get_tseitin_equivs(f):
@@ -123,8 +38,11 @@ def _tseitin_helper(f, equivs_conjunction, dummy_tracker):
         right_rep = f.right if is_right_lit else \
             dummy_tracker.get_dummy(f.right)
 
-        _handle_binary(f, equivs_conjunction, dummy_tracker.get_dummy(f),
-                       left_rep, right_rep)
+        if isinstance(f, (And, Or, Equiv, Imply)):
+            equivs_conjunction.append(Equiv(dummy_tracker.get_dummy(f),
+                                            type(f)(left_rep, right_rep)))
+        else:
+            raise ValueError("Unrecognized type of f: {0}".format(type(f)))
 
         if not is_left_lit:
             _tseitin_helper(f.left, equivs_conjunction, dummy_tracker)
