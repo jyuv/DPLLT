@@ -27,6 +27,37 @@ class Atom(ABC):
     def negate(self):
         raise NotImplementedError
 
+# Todo: Decide if Inequalities should have general left, right or a, b
+# Todo: Choose what to do with __hash__ as far of different types
+
+
+class InequalityAtom(Atom, ABC):
+    def __init__(self, a: np.ndarray, b: int, symbol: str):
+        self.a = a
+        self.b = b
+        self.symbol = symbol
+
+    def __eq__(self, other):
+        if isinstance(other, type(self)):
+            return (all(self.a == other.a)) and (self.b == other.b)
+        return False
+
+    def __hash__(self):
+        return hash((str(self.a), self.b))
+
+    def __str__(self):
+        if isinstance(self.a, TYPES_REQUIRE_SEPARATION_LEFT):
+            left_side = f"({self.a})"
+        else:
+            left_side = self.a
+
+        if isinstance(self.b, TYPES_REQUIRE_SEPARATION_RIGHT):
+            right_side = f"({self.b})"
+        else:
+            right_side = self.b
+
+        return f"{left_side} {self.symbol} {right_side}"
+
 
 class Var(Atom):
     def __init__(self, name: str, bool_val: Union[str, None] = None):
@@ -89,6 +120,7 @@ class Func(Atom):
         return Negate(self)
 
 
+# Todo: fix __str__ in Equal and NEqual
 class Equal(Atom):
     def __init__(self, left: Atom, right: Atom):
         self.left = left
@@ -139,21 +171,9 @@ class NEqual(Atom):
         return Equal(self.left, self.right)
 
 
-class Geq(Atom):
+class Geq(InequalityAtom):
     def __init__(self, a: np.ndarray, b: int):
-        self.a = a
-        self.b = b
-
-    def __str__(self):
-        return str(self.a) + " >= " + str(self.b)
-
-    def __eq__(self, other):
-        if isinstance(other, Geq):
-            return (all(self.a == other.a)) and (self.b == other.b)
-        return False
-
-    def __hash__(self):
-        return hash((str(self.a), self.b))
+        super(Geq, self).__init__(a, b, symbol=">=")
 
     def is_literal(self) -> bool:
         return True
@@ -162,21 +182,9 @@ class Geq(Atom):
         return Less(self.a, self.b)
 
 
-class Less(Atom):
+class Less(InequalityAtom):
     def __init__(self, a: np.ndarray, b: int):
-        self.a = a
-        self.b = b
-
-    def __str__(self):
-        return str(self.a) + " < " + str(self.b)
-
-    def __eq__(self, other):
-        if isinstance(other, Less):
-            return (all(self.a == other.a)) and (self.b == other.b)
-        return False
-
-    def __hash__(self):
-        return hash((str(self.a), self.b))
+        super(Less, self).__init__(a, b, symbol="<")
 
     def is_literal(self) -> bool:
         return True
@@ -199,8 +207,9 @@ class ComplexLogicalOp(LogicalOp, ABC):
 
 
 class UnaryOp(LogicalOp, ABC):
-    def __init__(self, item: Atom):
+    def __init__(self, item: Atom, symbol: str):
         self.item = item
+        self.symbol = symbol
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -210,13 +219,18 @@ class UnaryOp(LogicalOp, ABC):
     def __hash__(self):
         return hash((self.item, ))
 
+    def __str__(self):
+        if self.item.is_literal() or isinstance(self.item, UnaryOp):
+            inner_item_rep = self.item
+        else:
+            inner_item_rep = f"({self.item})"
+
+        return f"{self.symbol}{inner_item_rep}"
+
 
 class Negate(UnaryOp):
     def __init__(self, item: Atom):
-        super().__init__(item)
-
-    def __str__(self):
-        return "!" + str(self.item)
+        super().__init__(item, symbol="!")
 
     def negate(self):
         return self.item
@@ -226,9 +240,10 @@ class Negate(UnaryOp):
 
 
 class BinaryOp(LogicalOp, ABC):
-    def __init__(self, left_item: Atom, right_item: Atom):
+    def __init__(self, left_item: Atom, right_item: Atom, symbol: str):
         self.left = left_item
         self.right = right_item
+        self.symbol = symbol
 
     def is_literal(self) -> bool:
         return False
@@ -241,27 +256,34 @@ class BinaryOp(LogicalOp, ABC):
     def __hash__(self):
         return hash((self.left, self.right))
 
+    def __str__(self):
+        if isinstance(self.left, TYPES_REQUIRE_SEPARATION_LEFT):
+            left_side = f"({self.left})"
+        else:
+            left_side = self.left
+
+        if isinstance(self.right, TYPES_REQUIRE_SEPARATION_RIGHT):
+            right_side = f"({self.right})"
+        else:
+            right_side = self.right
+
+        return f"{left_side} {self.symbol} {right_side}"
+
 
 class And(BinaryOp):
     def __init__(self, left_item: Atom, right_item: Atom):
-        super(And, self).__init__(left_item, right_item)
+        super(And, self).__init__(left_item, right_item, symbol="&")
 
     def negate(self):
         return Or(Negate(self.left), Negate(self.right))
 
-    def __str__(self):
-        return "({0} & {1})".format(self.left, self.right)
-
 
 class Or(BinaryOp):
     def __init__(self, left_item: Atom, right_item: Atom):
-        super(Or, self).__init__(left_item, right_item)
+        super(Or, self).__init__(left_item, right_item, symbol="|")
 
     def negate(self):
         return And(Negate(self.left), Negate(self.right))
-
-    def __str__(self):
-        return "({0} | {1})".format(self.left, self.right)
 
     def cnf_distribute(self):
         if (isinstance(self.left, And)) and (isinstance(self.right, And)):
@@ -283,10 +305,7 @@ class Or(BinaryOp):
 
 class Imply(BinaryOp, ComplexLogicalOp):
     def __init__(self, left_item: Atom, right_item: Atom):
-        BinaryOp.__init__(self, left_item, right_item)
-
-    def __str__(self):
-        return "({0} -> {1})".format(self.left, self.right)
+        BinaryOp.__init__(self, left_item, right_item, symbol="->")
 
     def to_basic(self):
         return Or(Negate(self.left), self.right)
@@ -294,10 +313,7 @@ class Imply(BinaryOp, ComplexLogicalOp):
 
 class Equiv(BinaryOp):
     def __init__(self, left_item, right_item):
-        super(Equiv, self).__init__(left_item, right_item)
-
-    def __str__(self):
-        return "({0} <-> {1})".format(self.left, self.right)
+        super(Equiv, self).__init__(left_item, right_item, symbol="<->")
 
     def to_basic(self):
         return And(Or(Negate(self.left), self.right), Or(Negate(self.right),
@@ -305,3 +321,7 @@ class Equiv(BinaryOp):
 
     def negate(self):
         return self.to_basic().negate()
+
+
+TYPES_REQUIRE_SEPARATION_LEFT = (BinaryOp, Equal, NEqual, Less, Geq, UnaryOp)
+TYPES_REQUIRE_SEPARATION_RIGHT = (BinaryOp, Equal, NEqual, Less, Geq)
