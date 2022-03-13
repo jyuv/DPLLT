@@ -2,7 +2,7 @@ from typing import List, Dict, Set
 from logical_blocks import Var, Atom, BinaryOp, UnaryOp, Or, And, Negate,\
     NEqual, Equal, Func, Less, Geq
 
-from bool_transforms import tseitin_transform
+from bool_transforms.tseitin_transform import tseitin_transform
 
 
 def get_nested_literals(node: Atom, output_set: Set[Atom]) -> None:
@@ -96,7 +96,7 @@ def _remove_negations_in_eqs(cnf_conjunction):
     return new_clauses
 
 
-def cnf_conjunction_to_ints(cnf_conjunction: List[Atom]):
+def _cnf_conjunction_to_ints(cnf_conjunction: List[Atom]):
     literals = set()
     for clause in cnf_conjunction:
         get_nested_literals(clause, literals)
@@ -116,7 +116,7 @@ def cnf_conjunction_to_ints(cnf_conjunction: List[Atom]):
 def to_abstract_cnf_conjunction(raw_formula):
     cnf_conjunction = tseitin_transform(raw_formula)
     cnf_conjunction = _remove_negations_in_eqs(cnf_conjunction)
-    int_cnf_formula, lit_to_int = cnf_conjunction_to_ints(cnf_conjunction)
+    int_cnf_formula, lit_to_int = _cnf_conjunction_to_ints(cnf_conjunction)
 
     # remove trivial clauses
     int_cnf_formula = [clause for clause in int_cnf_formula if
