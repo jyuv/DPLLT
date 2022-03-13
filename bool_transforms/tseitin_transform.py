@@ -1,5 +1,5 @@
 from __future__ import annotations
-from logical_blocks import Var, Equiv, Imply, BinaryOp, UnaryOp, \
+from parsing.logical_blocks import Var, Equiv, Imply, BinaryOp, UnaryOp, \
     Negate, Or, And, NEqual, Func
 from bool_transforms.to_cnf import to_cnf
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from collections import defaultdict
-from logical_blocks import *
+from parsing.logical_blocks import *
 
 
 BLOCKS_MAP = {
@@ -75,9 +75,14 @@ class Tokenizer:
                     if self.text[i + 1].isalnum():
                         atom_name += self.text[i + 1]
                         i += 1
+
+                        if (i + 1) >= self.len_text:
+                            self.tokens.append(Token(atom_name, TokenType.VAR))
+
                     elif self.text[i+1] == "(":
                         self.tokens.append(Token(atom_name, TokenType.FUNCTION))
                         break
+
                     else:
                         self.tokens.append(Token(atom_name, TokenType.VAR))
                         break
@@ -342,14 +347,26 @@ class Parser:
         return parentheses_map
 
     def _split_function_args(self, bounds):
-        args = []
-        cur_arg = []
-        for i in range(*bounds):
-            if self.tokenizer.tokens[i].token_type != TokenType.ARG_DELIMITER:
-                cur_arg.append(self.tokenizer.tokens[i])
-            else:
+        # Todo: fix problem here with delimiter and functions inside functions
+        args, cur_arg = [], []
+        i = bounds[0]
+        while i < bounds[1]:
+            cur_token = self.tokenizer.tokens[i]
+
+            if cur_token.token_type == TokenType.FUNCTION:
+                right_parenthesis_id = self.p_map[i+1][2]
+                func_tokens = self.tokenizer.tokens[i: right_parenthesis_id + 1]
+                cur_arg.extend(func_tokens)
+                i += right_parenthesis_id - i
+
+            elif cur_token.token_type == TokenType.ARG_DELIMITER:
                 args.append(cur_arg)
                 cur_arg = []
+
+            else:
+                cur_arg.append(self.tokenizer.tokens[i])
+            i += 1
+
         if cur_arg:
             args.append(cur_arg)
         return args

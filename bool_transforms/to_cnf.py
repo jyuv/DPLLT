@@ -1,4 +1,4 @@
-from logical_blocks import Atom, Equiv, Imply, BinaryOp, UnaryOp, Negate, Or, \
+from parsing.logical_blocks import Atom, Equiv, Imply, BinaryOp, UnaryOp, Negate, Or, \
     Equal, NEqual, Less, Geq
 
 

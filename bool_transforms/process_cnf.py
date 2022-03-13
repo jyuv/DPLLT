@@ -1,5 +1,5 @@
 from typing import List, Dict, Set
-from logical_blocks import Var, Atom, BinaryOp, UnaryOp, Or, And, Negate,\
+from parsing.logical_blocks import Var, Atom, BinaryOp, UnaryOp, Or, And, Negate,\
     NEqual, Equal, Func, Less, Geq
 
 from bool_transforms.tseitin_transform import tseitin_transform
