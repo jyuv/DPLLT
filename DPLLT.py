@@ -1,10 +1,10 @@
 from __future__ import annotations
-from logical_blocks import Atom, Var
+from parsing.logical_blocks import Atom, Var
 from typing import List, Dict
 import SATSolver
 from constants import ResultCode
 from theories.PropositionalTheory import PropositionalTheory
-from process_cnf import to_abstract_cnf_conjunction
+from bool_transforms.process_cnf import to_abstract_cnf_conjunction
 
 
 def _translate_valid_assignment(sat_assignment: List[int],
