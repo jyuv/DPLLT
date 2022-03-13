@@ -1,5 +1,5 @@
 import pytest
-from parse import Parser
+from parsing.parse import Parser
 
 parser = Parser()
 
