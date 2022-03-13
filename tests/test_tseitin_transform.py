@@ -1,7 +1,8 @@
 from bool_transforms.tseitin_transform import tseitin_transform
-from logical_blocks import Var, Or, And, Negate, Equiv, Imply, Func, NEqual
+from parsing.logical_blocks import Var, Or, And, Negate, Equiv, Imply, Func,\
+    NEqual
 import pytest
-from parse import Parser
+from parsing.parse import Parser
 from bool_transforms.to_cnf import to_cnf
 
 parser = Parser()
