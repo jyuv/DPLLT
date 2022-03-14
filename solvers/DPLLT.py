@@ -1,7 +1,7 @@
 from __future__ import annotations
 from parsing.logical_blocks import Atom, Var
 from typing import List, Dict
-import SATSolver
+from solvers import SATSolver
 from constants import ResultCode
 from theories.PropositionalTheory import PropositionalTheory
 from bool_transforms.process_cnf import to_abstract_cnf_conjunction
