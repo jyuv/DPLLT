@@ -39,6 +39,7 @@ VALID_RIGHT_INPUT_TYPES = [TokenType.VAR, TokenType.FUNCTION,
                            TokenType.NUM]
 
 INEQUALITIES_OPS_TEXTS = [">=", "<"]
+EQUALITIES_OPS_TEXTS = ["=", "!="]
 
 
 @dataclass
@@ -51,59 +52,141 @@ class Tokenizer:
     def __init__(self):
         self.tokens = []
         self.text, self.len_text = "", 0
+        self.cur_i = 0
 
     def reset(self):
         self.tokens = []
         self.text = ""
         self.len_text = 0
+        self.cur_i = 0
+
+    def _process_var_or_function(self):
+        atom_name = self.text[self.cur_i]
+        if (self.cur_i + 1) >= self.len_text:
+            self.tokens.append(Token(atom_name, TokenType.VAR))
+
+        while (self.cur_i + 1) < self.len_text:
+            if self.text[self.cur_i + 1].isalnum():
+                atom_name += self.text[self.cur_i + 1]
+                self.cur_i += 1
+
+                if (self.cur_i + 1) >= self.len_text:
+                    self.tokens.append(Token(atom_name, TokenType.VAR))
+
+            elif self.text[self.cur_i + 1] == "(":
+                self.tokens.append(Token(atom_name, TokenType.FUNCTION))
+                break
+
+            else:
+                self.tokens.append(Token(atom_name, TokenType.VAR))
+                break
+
+    def _process_num(self):
+        num_str = self.text[self.cur_i]
+        if (self.cur_i + 1) >= self.len_text:
+            self.tokens.append(Token(num_str, TokenType.NUM))
+
+        else:
+            while (self.cur_i + 1) < self.len_text:
+                if self.text[self.cur_i + 1].isdecimal():
+                    num_str += self.text[self.cur_i + 1]
+                    self.cur_i += 1
+
+                elif self.text[self.cur_i + 1].isalpha():
+                    raise ValueError()
+
+                else:
+                    break
+            self.tokens.append(Token(num_str, TokenType.NUM))
+
+    def _process_negations_or_neqs(self):
+        if ((self.cur_i + 1) < self.len_text) and\
+                (self.text[self.cur_i + 1] == '='):
+            self.cur_i += 1
+            self.tokens.append(Token("!=", TokenType.BINARY_OP))
+        else:
+            self.tokens.append(Token("!", TokenType.UNARY_OP))
+
+    def _process_right_imply_negatives(self):
+        if ((self.cur_i + 1) < self.len_text) and \
+                (self.text[self.cur_i + 1] == '>'):
+            self.cur_i += 1
+            self.tokens.append(Token("->", TokenType.BINARY_OP))
+
+        elif ((self.cur_i + 1) < self.len_text) and \
+                (self.text[self.cur_i + 1].isdecimal()):
+            num_str = self.text[self.cur_i] + self.text[self.cur_i + 1]
+            self.cur_i += 1
+
+            if (self.cur_i + 1) >= self.len_text:
+                self.tokens.append(Token(num_str, TokenType.NUM))
+
+            while (self.cur_i + 1) < self.len_text:
+                if self.text[self.cur_i + 1].isdecimal():
+                    num_str += self.text[self.cur_i + 1]
+                    self.cur_i += 1
+
+                elif self.text[self.cur_i + 1].isalpha():
+                    raise ValueError()
+
+                else:
+                    self.tokens.append(Token(num_str, TokenType.NUM))
+                    break
+        else:
+            error_msg = "Illegal combination of chars: {0}".format(
+                self.text[self.cur_i:self.cur_i + 2])
+            raise ValueError(error_msg)
+
+    def _process_less_equiv_left_imply(self):
+        if ((self.cur_i + 1) < self.len_text) and \
+                (self.text[self.cur_i + 1] == '-'):
+            self.cur_i += 1
+
+            if ((self.cur_i + 1) < self.len_text) and \
+                    (self.text[self.cur_i + 1].isdecimal()):
+                self.tokens.append(Token("<", TokenType.BINARY_OP))
+
+            elif ((self.cur_i + 1) < self.len_text) and \
+                    (self.text[self.cur_i + 1] == '>'):
+                self.cur_i += 1
+                self.tokens.append(Token("<->", TokenType.BINARY_OP))
+
+            else:
+                self.tokens.append(Token("<-", TokenType.BINARY_OP))
+
+        else:
+            self.tokens.append(Token("<", TokenType.BINARY_OP))
+
+    def _process_geqs(self):
+        if ((self.cur_i + 1) < self.len_text) and \
+                (self.text[self.cur_i + 1] == '='):
+            self.cur_i += 1
+            self.tokens.append(Token(">=", TokenType.BINARY_OP))
+
+        else:
+            error_msg = "Illegal combination of chars: {0}".format(
+                self.text[self.cur_i:self.cur_i + 2])
+            raise ValueError(error_msg)
+
+    def _process_num_array(self):
+        end_id = self.text.find("]", self.cur_i)
+        token_content = self.text[self.cur_i:end_id + 1]
+        self.tokens.append(Token(token_content, TokenType.NUM_ARRAY))
+        self.cur_i += len(token_content) - 1
 
     def tokenize(self, raw_text: str):
         self.reset()
         self.text = raw_text.replace(" ", "")
         self.len_text = len(self.text)
 
-        i = 0
-        while i < self.len_text:
-            cur_char = self.text[i]
+        while self.cur_i < self.len_text:
+            cur_char = self.text[self.cur_i]
 
             if cur_char.isalpha():
-                atom_name = cur_char
-                if (i + 1) >= self.len_text:
-                    self.tokens.append(Token(atom_name, TokenType.VAR))
-
-                while (i + 1) < self.len_text:
-                    if self.text[i + 1].isalnum():
-                        atom_name += self.text[i + 1]
-                        i += 1
-
-                        if (i + 1) >= self.len_text:
-                            self.tokens.append(Token(atom_name, TokenType.VAR))
-
-                    elif self.text[i+1] == "(":
-                        self.tokens.append(Token(atom_name, TokenType.FUNCTION))
-                        break
-
-                    else:
-                        self.tokens.append(Token(atom_name, TokenType.VAR))
-                        break
+                self._process_var_or_function()
 
             elif cur_char.isdecimal():
-                num_str = cur_char
-                if (i+1) >= self.len_text:
-                    self.tokens.append(Token(num_str, TokenType.NUM))
-
-                else:
-                    while (i + 1) < self.len_text:
-                        if self.text[i+1].isdecimal():
-                            num_str += self.text[i+1]
-                            i += 1
-
-                        elif self.text[i+1].isalpha():
-                            raise ValueError()
-
-                        else:
-                            break
-                    self.tokens.append(Token(num_str, TokenType.NUM))
+                self._process_num()
 
             elif cur_char == '(':
                 self.tokens.append(Token("(", TokenType.L_PARENTHESES))
@@ -115,81 +198,27 @@ class Tokenizer:
                 self.tokens.append(Token(cur_char, TokenType.BINARY_OP))
 
             elif cur_char == '!':
-                if ((i + 1) < self.len_text) and (self.text[i + 1] == '='):
-                    i += 1
-                    self.tokens.append(Token("!=", TokenType.BINARY_OP))
-                else:
-                    self.tokens.append(Token("!", TokenType.UNARY_OP))
+                self._process_negations_or_neqs()
 
             elif cur_char == '<':
-                if ((i + 1) < self.len_text) and (self.text[i + 1] == '-'):
-                    i += 1
-                    if ((i + 1) < self.len_text) and \
-                            (self.text[i + 1].isdecimal()):
-                        self.tokens.append(Token("<", TokenType.BINARY_OP))
-
-                    elif ((i + 1) < self.len_text) and\
-                            (self.text[i + 1] == '>'):
-                        i += 1
-                        self.tokens.append(Token("<->", TokenType.BINARY_OP))
-
-                    else:
-                        self.tokens.append(Token("<-", TokenType.BINARY_OP))
-                else:
-                    self.tokens.append(Token("<", TokenType.BINARY_OP))
+                self._process_less_equiv_left_imply()
 
             elif cur_char == '>':
-                if ((i + 1) < self.len_text) and (self.text[i + 1] == '='):
-                    i += 1
-                    self.tokens.append(Token(">=", TokenType.BINARY_OP))
-                else:
-                    error_msg = "Illegal combination of chars: {0}".format(
-                        self.text[i:i+2])
-                    raise ValueError(error_msg)
+                self._process_geqs()
 
             elif cur_char == '-':
-                if ((i + 1) < self.len_text) and (self.text[i + 1] == '>'):
-                    i += 1
-                    self.tokens.append(Token("->", TokenType.BINARY_OP))
-
-                elif ((i + 1) < self.len_text) and\
-                        (self.text[i + 1].isdecimal()):
-                    num_str = cur_char + self.text[i+1]
-                    i += 1
-
-                    if (i + 1) >= self.len_text:
-                        self.tokens.append(Token(num_str, TokenType.NUM))
-
-                    while (i + 1) < self.len_text:
-                        if self.text[i + 1].isdecimal():
-                            num_str += self.text[i + 1]
-                            i += 1
-
-                        elif self.text[i + 1].isalpha():
-                            raise ValueError()
-
-                        else:
-                            self.tokens.append(Token(num_str, TokenType.NUM))
-                            break
-
-                else:
-                    error_msg = "Illegal combination of chars: {0}".format(
-                        self.text[i:i + 2])
-                    raise ValueError(error_msg)
+                self._process_right_imply_negatives()
 
             elif cur_char == ",":
                 self.tokens.append(Token(",", TokenType.ARG_DELIMITER))
 
             elif cur_char == "[":
-                end_id = self.text.find("]", i)
-                token_content = self.text[i:end_id + 1]
-                self.tokens.append(Token(token_content, TokenType.NUM_ARRAY))
-                i += len(token_content) - 1
+                self._process_num_array()
 
             else:
                 raise ValueError()
 
-            i += 1
+            self.cur_i += 1
 
 
 class Parser:
@@ -419,7 +448,7 @@ class Parser:
             inner_inner_item = self._helper(level, new_bounds)
             right_item = BLOCKS_MAP[next_token.text](inner_inner_item)
 
-        elif (op_token.text in ["=", "!="]) and\
+        elif (op_token.text in EQUALITIES_OPS_TEXTS) and\
                 (next_token.token_type == TokenType.NUM):
             right_item = int(next_token.text)
 
@@ -444,7 +473,7 @@ class Parser:
                 new_bounds = (self.p_map[loc][2] + 1, loc)
                 left_item = self._helper(level + 1, new_bounds)
 
-        elif op_token.text in ["=", "!="] and prev_token.token_type == TokenType.NUM_ARRAY:
+        elif op_token.text in EQUALITIES_OPS_TEXTS and prev_token.token_type == TokenType.NUM_ARRAY:
             left_item = np.array([int(x) for x in prev_token.text[1:-1].split(",")])
         else:
             raise ValueError("Invalid left item: {0}".format(prev_token.text))
