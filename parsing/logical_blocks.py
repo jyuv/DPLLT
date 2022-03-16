@@ -27,36 +27,55 @@ class Atom(ABC):
     def negate(self):
         raise NotImplementedError
 
-# Todo: Decide if Inequalities should have general left, right or a, b
-# Todo: Choose what to do with __hash__ as far of different types
 
-
-class InequalityAtom(Atom, ABC):
-    def __init__(self, a: np.ndarray, b: int, symbol: str):
-        self.a = a
-        self.b = b
+class DualSideLiteral(Atom, ABC):
+    def __init__(self, left, right, symbol: str):
+        self.left = left
+        self.right = right
         self.symbol = symbol
+
+    def __str__(self):
+        if isinstance(self.left, np.ndarray):
+            left_side = repr(self.left)[6: -1]
+        else:
+            left_side = str(self.left)
+
+        if isinstance(self.left, TYPES_REQUIRE_SEPARATION_LEFT):
+            left_side = f"({left_side})"
+
+        if isinstance(self.right, np.ndarray):
+            right_side = repr(self.right)[6: -1]
+        else:
+            right_side = str(self.right)
+
+        if isinstance(self.right, TYPES_REQUIRE_SEPARATION_RIGHT):
+            right_side = f"({right_side})"
+
+        return f"{left_side} {self.symbol} {right_side}"
+
+    def __hash__(self):
+        return hash((str(self.left), self.right, self.symbol))
 
     def __eq__(self, other):
         if isinstance(other, type(self)):
-            return (all(self.a == other.a)) and (self.b == other.b)
+            is_same_left = self.left == other.left
+            if isinstance(is_same_left, np.ndarray):
+                is_same_left = all(is_same_left)
+
+            is_same_right = self.right == other.right
+            if isinstance(is_same_right, np.ndarray):
+                is_same_right = all(is_same_right)
+
+            return all((is_same_left, is_same_right,
+                        self.symbol == other.symbol))
         return False
 
-    def __hash__(self):
-        return hash((str(self.a), self.b))
+    def is_literal(self) -> bool:
+        return True
 
-    def __str__(self):
-        if isinstance(self.a, TYPES_REQUIRE_SEPARATION_LEFT):
-            left_side = f"({self.a})"
-        else:
-            left_side = self.a
-
-        if isinstance(self.b, TYPES_REQUIRE_SEPARATION_RIGHT):
-            right_side = f"({self.b})"
-        else:
-            right_side = self.b
-
-        return f"{left_side} {self.symbol} {right_side}"
+    @abstractmethod
+    def negate(self):
+        pass
 
 
 class Var(Atom):
@@ -120,77 +139,36 @@ class Func(Atom):
         return Negate(self)
 
 
-# Todo: fix __str__ in Equal and NEqual
-class Equal(Atom):
-    def __init__(self, left: Atom, right: Atom):
-        self.left = left
-        self.right = right
-
-    def __str__(self):
-        return str(self.left) + " = " + str(self.right)
-
-    def __eq__(self, other):
-        if isinstance(other, Equal):
-            return (self.left == other.left) and (self.right == other.right)
-        return False
-
-    def __hash__(self):
-        if isinstance(self.left, np.ndarray):
-            return hash((str(self.left), self.right))
-        return hash((self.left, self.right))
-
-    def is_literal(self) -> bool:
-        return True
+class Equal(DualSideLiteral):
+    def __init__(self, left, right):
+        super(Equal, self).__init__(left, right, symbol="=")
 
     def negate(self):
         return NEqual(self.left, self.right)
 
 
-class NEqual(Atom):
-    def __init__(self, left: Atom, right: Atom):
-        self.left = left
-        self.right = right
-
-    def __str__(self):
-        return str(self.left) + " != " + str(self.right)
-
-    def __eq__(self, other):
-        if isinstance(other, NEqual):
-            return (self.left == other.left) and (self.right == other.right)
-        return False
-
-    def __hash__(self):
-        if isinstance(self.left, np.ndarray):
-            return hash((str(self.left), self.right))
-        return hash((self.left, self.right))
-
-    def is_literal(self) -> bool:
-        return True
+class NEqual(DualSideLiteral):
+    def __init__(self, left, right):
+        super(NEqual, self).__init__(left, right, symbol="!=")
 
     def negate(self):
         return Equal(self.left, self.right)
 
 
-class Geq(InequalityAtom):
-    def __init__(self, a: np.ndarray, b: int):
-        super(Geq, self).__init__(a, b, symbol=">=")
-
-    def is_literal(self) -> bool:
-        return True
+class Geq(DualSideLiteral):
+    def __init__(self, left, right):
+        super(Geq, self).__init__(left, right, symbol=">=")
 
     def negate(self):
-        return Less(self.a, self.b)
+        return Less(self.left, self.right)
 
 
-class Less(InequalityAtom):
-    def __init__(self, a: np.ndarray, b: int):
-        super(Less, self).__init__(a, b, symbol="<")
-
-    def is_literal(self) -> bool:
-        return True
+class Less(DualSideLiteral):
+    def __init__(self, left, right):
+        super(Less, self).__init__(left, right, symbol="<")
 
     def negate(self):
-        return Geq(self.a, self.b)
+        return Geq(self.left, self.right)
 
 
 class LogicalOp(Atom, ABC):
@@ -220,10 +198,10 @@ class UnaryOp(LogicalOp, ABC):
         return hash((self.item, ))
 
     def __str__(self):
-        if self.item.is_literal() or isinstance(self.item, UnaryOp):
-            inner_item_rep = self.item
-        else:
+        if isinstance(self.item, TYPES_REQUIRE_SEPARATION_RIGHT):
             inner_item_rep = f"({self.item})"
+        else:
+            inner_item_rep = self.item
 
         return f"{self.symbol}{inner_item_rep}"
 
@@ -323,5 +301,5 @@ class Equiv(BinaryOp):
         return self.to_basic().negate()
 
 
-TYPES_REQUIRE_SEPARATION_LEFT = (BinaryOp, Equal, NEqual, Less, Geq, UnaryOp)
-TYPES_REQUIRE_SEPARATION_RIGHT = (BinaryOp, Equal, NEqual, Less, Geq)
+TYPES_REQUIRE_SEPARATION_LEFT = (BinaryOp, DualSideLiteral, UnaryOp)
+TYPES_REQUIRE_SEPARATION_RIGHT = (BinaryOp, DualSideLiteral)
