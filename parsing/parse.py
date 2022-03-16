@@ -38,9 +38,6 @@ VALID_RIGHT_INPUT_TYPES = [TokenType.VAR, TokenType.FUNCTION,
                            TokenType.L_PARENTHESES, TokenType.UNARY_OP,
                            TokenType.NUM]
 
-INEQUALITIES_OPS_TEXTS = [">=", "<"]
-EQUALITIES_OPS_TEXTS = ["=", "!="]
-
 
 @dataclass
 class Token:
@@ -266,6 +263,10 @@ class Parser:
                 is_already_unary_op = False
                 is_already_binary_op = False
 
+            elif cur_type == TokenType.ARG_DELIMITER:
+                is_already_unary_op = False
+                is_already_binary_op = False
+
             elif cur_type == TokenType.R_PARENTHESES:
                 if prev_token_type == TokenType.L_PARENTHESES:
                     raise ValueError("Invalid )( adjacency found")
@@ -376,7 +377,6 @@ class Parser:
         return parentheses_map
 
     def _split_function_args(self, bounds):
-        # Todo: fix problem here with delimiter and functions inside functions
         args, cur_arg = [], []
         i = bounds[0]
         while i < bounds[1]:
@@ -448,8 +448,11 @@ class Parser:
             inner_inner_item = self._helper(level, new_bounds)
             right_item = BLOCKS_MAP[next_token.text](inner_inner_item)
 
-        elif (op_token.text in EQUALITIES_OPS_TEXTS) and\
-                (next_token.token_type == TokenType.NUM):
+        elif next_token.token_type == TokenType.NUM_ARRAY:
+            right_item = np.array([int(x) for x in
+                                  next_token.text[1:-1].split(",")])
+
+        elif next_token.token_type == TokenType.NUM:
             right_item = int(next_token.text)
 
         else:
@@ -473,8 +476,13 @@ class Parser:
                 new_bounds = (self.p_map[loc][2] + 1, loc)
                 left_item = self._helper(level + 1, new_bounds)
 
-        elif op_token.text in EQUALITIES_OPS_TEXTS and prev_token.token_type == TokenType.NUM_ARRAY:
-            left_item = np.array([int(x) for x in prev_token.text[1:-1].split(",")])
+        elif prev_token.token_type == TokenType.NUM_ARRAY:
+            left_item = np.array([int(x) for x in
+                                  prev_token.text[1:-1].split(",")])
+
+        elif prev_token.token_type == TokenType.NUM:
+            left_item = int(prev_token.text)
+
         else:
             raise ValueError("Invalid left item: {0}".format(prev_token.text))
 
@@ -486,20 +494,6 @@ class Parser:
             inner_item = self._process_right_item(op_loc + 1, op_level,
                                                   cur_bounds)
             return BLOCKS_MAP[op_token.text](inner_item)
-
-        elif op_token.text in INEQUALITIES_OPS_TEXTS:
-            if (op_loc <= 0) or (op_loc >= len(self.tokenizer.tokens) - 1):
-                raise ValueError()
-
-            prev_token = self.tokenizer.tokens[op_loc - 1]
-            next_token = self.tokenizer.tokens[op_loc + 1]
-            if prev_token.token_type != TokenType.NUM_ARRAY or\
-                    next_token.token_type != TokenType.NUM:
-                raise ValueError()
-            left_item = np.array([int(x) for x in
-                                  prev_token.text[1:-1].split(",")])
-            right_item = int(next_token.text)
-            return BLOCKS_MAP[op_token.text](left_item, right_item)
 
         else:  # Binary op which isn't an inequality
             right_item = self._process_right_item(op_loc + 1, op_level,
