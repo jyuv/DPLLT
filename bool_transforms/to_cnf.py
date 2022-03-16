@@ -1,5 +1,5 @@
-from parsing.logical_blocks import Atom, Equiv, Imply, BinaryOp, UnaryOp, Negate, Or, \
-    Equal, NEqual, Less, Geq
+from parsing.logical_blocks import Atom, Equiv, Imply, BinaryOp, UnaryOp,\
+    Negate, Or, Equal, NEqual, Less, Geq
 
 
 def _reduce_to_basic(node: Atom) -> Atom:
@@ -45,9 +45,9 @@ def _nnf_to_cnf(node: Atom) -> Atom:
         elif isinstance(node.item, NEqual):
             return Equal(node.item.left, node.item.right)
         elif isinstance(node.item, Less):
-            return Geq(node.item.a, node.item.b)
+            return Geq(node.item.left, node.item.right)
         elif isinstance(node.item, Geq):
-            return Less(node.item.a, node.item.b)
+            return Less(node.item.left, node.item.right)
     return node
 
 

@@ -1,6 +1,6 @@
 from typing import List, Dict, Set
-from parsing.logical_blocks import Var, Atom, BinaryOp, UnaryOp, Or, And, Negate,\
-    NEqual, Equal, Func, Less, Geq
+from parsing.logical_blocks import Var, Atom, BinaryOp, UnaryOp, Or, And,\
+    Negate, NEqual, Equal, Func, Less, Geq
 
 from bool_transforms.tseitin_transform import tseitin_transform
 
@@ -44,7 +44,7 @@ def _create_literals_mapping(literals: Set[Atom]) -> Dict[Atom, int]:
         elif isinstance(lit, NEqual):
             lits_encountered[Equal(lit.left, lit.right)] = None
         elif isinstance(lit, Less):
-            lits_encountered[Geq(lit.a, lit.b)] = None
+            lits_encountered[Geq(lit.left, lit.right)] = None
 
     lits_encountered = list(lits_encountered.keys())
     mapping = {old_name: idx + 1 for (idx, old_name) in
@@ -55,7 +55,7 @@ def _create_literals_mapping(literals: Set[Atom]) -> Dict[Atom, int]:
         elif isinstance(lit, Equal):
             mapping[NEqual(lit.left, lit.right)] = -mapping[lit]
         elif isinstance(lit, Geq):
-            mapping[Less(lit.a, lit.b)] = -mapping[lit]
+            mapping[Less(lit.left, lit.right)] = -mapping[lit]
     return mapping
 
 
