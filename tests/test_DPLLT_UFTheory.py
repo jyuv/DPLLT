@@ -3,6 +3,7 @@ import pytest
 from solvers.DPLLT import DPLLT
 from constants import ResultCode
 from parsing.parse import Parser
+from tests.test_utils import verify_assignment
 from theories.UFTheory import UFTheory
 
 
@@ -57,7 +58,10 @@ parser = Parser()
 ])
 def test_dpllt_with_uf(formula_text, expected_result_code):
     formula = parser.parse(formula_text)
-    assert solver.solve(formula)[0] == expected_result_code
+    result_code, assignment = solver.solve(formula)
+    assert result_code == expected_result_code
+    int_clauses_sets = [c.literals for c in solver.sat_solver.clauses]
+    assert verify_assignment(int_clauses_sets, assignment)
 
 
 def test_eqs_neqs_args_no_errors():
