@@ -24,12 +24,10 @@ def test_is_literal(formula_text, bool_is_literal):
     assert formula.is_literal() == bool_is_literal
 
 
-# Todo: add here =, !=,  >=, <, functions, double negations,
-#  double negations as args.
 @pytest.mark.parametrize("formula_text", [
     "!(X1->(X1&X2))",
     "!(X1<->(X1&X2))",
-    "(X1|!X2)&(X3->X2)"
+    "(X1|!X2)&(X3->X2)",
     "a = b",
     "a = (c = d)",
     "a != b",
@@ -40,7 +38,7 @@ def test_is_literal(formula_text, bool_is_literal):
     "!([1, 2] >= 3)",
     "f(a, b)",
     "f(a, b & c)",
-    "f(a = b, c | (d & s))"
+    "f(a = b, c | (d & s))",
     "!!x",
     "!!(a = b)",
     "!!!x",
@@ -51,17 +49,20 @@ def test_str(formula_text):
     assert str(formula).replace(" ", "") == formula_text.replace(" ", "")
 
 
-# Todo: add __eq__ & __hash__ tests
-#  Make sure equalities with isinstance(type(self)) works
-
-# Todo: add here =, !=, >=, <, functions
 negations_params = [
     ("!x1", "x1"),
     ("!!x2", "!x2"),
     ("x1 & x2", "(!x1) | !x2"),
     ("(!x1) & x2", "(!!x1) | !x2"),
     ("x1 | x2", "(!x1) & !x2"),
-    ("(!!x1) | !x2", "(!!!x1) & !!x2")
+    ("(!!x1) | !x2", "(!!!x1) & !!x2"),
+    ("a = b", "a != b"),
+    ("a != b", "a = b"),
+    ("!(a = b)", "a = b"),
+    ("!(a != b)", "a != b"),
+    ("[5, 1] >= 3", "[5,1] < 3"),
+    ("[5, 1] < 3", "[5,1] >= 3"),
+    ("f(f(a, b), c)", "!f(f(a, b), c)")
 ]
 
 
