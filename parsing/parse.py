@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from collections import defaultdict
+from collections import defaultdict, deque
 from parsing.logical_blocks import *
 
 
@@ -18,8 +18,6 @@ BLOCKS_MAP = {
 }
 
 
-# tokens types: <->, <-, ->, &, |, !, <, >=, =, !=
-
 class TokenType(Enum):
     BINARY_OP = 1
     UNARY_OP = 2
@@ -33,10 +31,11 @@ class TokenType(Enum):
 
 
 VALID_LEFT_INPUT_TYPES = [TokenType.VAR, TokenType.FUNCTION,
-                          TokenType.R_PARENTHESES, TokenType.NUM_ARRAY]
+                          TokenType.R_PARENTHESES, TokenType.NUM_ARRAY,
+                          TokenType.NUM]
 VALID_RIGHT_INPUT_TYPES = [TokenType.VAR, TokenType.FUNCTION,
                            TokenType.L_PARENTHESES, TokenType.UNARY_OP,
-                           TokenType.NUM]
+                           TokenType.NUM_ARRAY, TokenType.NUM]
 
 
 @dataclass
@@ -90,7 +89,9 @@ class Tokenizer:
                     self.cur_i += 1
 
                 elif self.text[self.cur_i + 1].isalpha():
-                    raise ValueError()
+                    error_msg = f"Invalid num followed by a letter:" \
+                                f" {num_str + self.text[self.cur_i]} "
+                    raise ValueError(error_msg)
 
                 else:
                     break
@@ -124,14 +125,16 @@ class Tokenizer:
                     self.cur_i += 1
 
                 elif self.text[self.cur_i + 1].isalpha():
-                    raise ValueError()
+                    error_msg = f"Invalid num followed by a letter:" \
+                                f" {num_str + self.text[self.cur_i]} "
+                    raise ValueError(error_msg)
 
                 else:
                     self.tokens.append(Token(num_str, TokenType.NUM))
                     break
         else:
-            error_msg = "Illegal combination of chars: {0}".format(
-                self.text[self.cur_i:self.cur_i + 2])
+            error_msg = f"Illegal combination of chars: " \
+                        f"{self.text[self.cur_i:self.cur_i + 2]}"
             raise ValueError(error_msg)
 
     def _process_less_equiv_left_imply(self):
@@ -161,8 +164,9 @@ class Tokenizer:
             self.tokens.append(Token(">=", TokenType.BINARY_OP))
 
         else:
-            error_msg = "Illegal combination of chars: {0}".format(
-                self.text[self.cur_i:self.cur_i + 2])
+            error_msg = f"Illegal combination of chars: " \
+                        f"{self.text[self.cur_i:self.cur_i + 2]}"
+
             raise ValueError(error_msg)
 
     def _process_num_array(self):
@@ -213,7 +217,7 @@ class Tokenizer:
                 self._process_num_array()
 
             else:
-                raise ValueError()
+                raise ValueError(f"Unable to parse {cur_char} to token")
 
             self.cur_i += 1
 
@@ -289,31 +293,62 @@ class Parser:
 
     def _check_delimiter_validity(self):
         functions_ctxs_depth = 0
+        cur_inner_function_level = 0
+        inner_functions_levels = deque()
         for i, token in enumerate(self.tokenizer.tokens):
-            if token.token_type == TokenType.L_PARENTHESES:
+            if token.token_type == TokenType.FUNCTION:
+                inner_functions_levels.append(cur_inner_function_level)
                 functions_ctxs_depth += 1
-            elif token.token_type == TokenType.R_PARENTHESES:
-                functions_ctxs_depth -= 1
+                cur_inner_function_level = 0
+
+            elif token.token_type == TokenType.L_PARENTHESES and\
+                    functions_ctxs_depth > 0:
+                cur_inner_function_level += 1
+
+            elif token.token_type == TokenType.R_PARENTHESES and \
+                    functions_ctxs_depth > 0:
+                cur_inner_function_level -= 1
+                if cur_inner_function_level == 0:
+                    functions_ctxs_depth -= 1
+                    cur_inner_function_level = inner_functions_levels.pop()
+
             elif token.token_type == TokenType.ARG_DELIMITER:
                 if functions_ctxs_depth == 0:
-                    error_msg = "Invalid delimiter location in:{0}".format(i)
+                    error_msg = f"Invalid delimiter location in: {i}"
                     raise ValueError(error_msg)
 
     def _check_ops_inputs_validity(self):
         tokens = self.tokenizer.tokens
         num_tokens = len(tokens)
 
-        # Todo: fill value errors with appropriate messages
         for i, token in enumerate(tokens):
             if token.token_type == TokenType.UNARY_OP:
-                if ((i + 1) >= num_tokens) or (tokens[i + 1].token_type not
-                                               in VALID_RIGHT_INPUT_TYPES):
-                    raise ValueError()
+                if (i + 1) >= num_tokens:
+                    error_msg = f"Unary Operation {token.text} at the end" \
+                                f" of formula text with no item to act on"
+                    raise ValueError(error_msg)
+
+                elif tokens[i + 1].token_type not in VALID_RIGHT_INPUT_TYPES:
+                    error_msg = f"Invalid argument to unary" \
+                                f" operation {token.text}"
+                    raise ValueError(error_msg)
+
             elif token.token_type == TokenType.BINARY_OP:
                 is_on_edge = (i + 1 >= num_tokens) or ((i - 1) < 0)
-                if is_on_edge or (tokens[i - 1].token_type not in VALID_LEFT_INPUT_TYPES)\
-                        or (tokens[i + 1].token_type not in VALID_RIGHT_INPUT_TYPES):
-                    raise ValueError()
+                if is_on_edge:
+                    error_msg = f"Binary Operation {token.text} don't have" \
+                                f" an argument to his left or right "
+                    raise ValueError(error_msg)
+
+                elif tokens[i - 1].token_type not in VALID_LEFT_INPUT_TYPES:
+                    error_msg = f"Invalid left argument to binary" \
+                                f" operation {token.text}"
+                    raise ValueError(error_msg)
+
+                elif tokens[i + 1].token_type not in VALID_RIGHT_INPUT_TYPES:
+                    error_msg = f"Invalid right argument to binary" \
+                                f" operation {token.text}"
+                    raise ValueError(error_msg)
 
     def _check_arrays_validity(self):
         def is_number(text):
@@ -328,11 +363,13 @@ class Parser:
                 content_items = token.text[1:-1].split(",")
 
                 if len(content_items) == 0:
-                    raise ValueError()
+                    raise ValueError("Encountered an empty array")
 
                 for c_item in content_items:
                     if not is_number(c_item):
-                        raise ValueError()
+                        error_msg = f"{c_item} isn't a number in" \
+                                    f" array [{content_items}]"
+                        raise ValueError(error_msg)
 
     def _get_levels_map(self):
         levels_ops_map = defaultdict(list)
@@ -431,7 +468,6 @@ class Parser:
 
     def _process_right_item(self, loc, level, parent_bounds):
         next_token = self.tokenizer.tokens[loc]
-        op_token = self.tokenizer.tokens[loc - 1]
 
         if next_token.token_type == TokenType.VAR:
             right_item = Var(next_token.text)
@@ -456,12 +492,14 @@ class Parser:
             right_item = int(next_token.text)
 
         else:
-            raise ValueError(loc)
+            error_msg = f"Unexpected token {next_token.text} of type " \
+                        f"{next_token.token_type} to serve as a right argument"
+            raise ValueError(error_msg)
+
         return right_item
 
     def _process_left_item(self, loc, level):
         prev_token = self.tokenizer.tokens[loc]
-        op_token = self.tokenizer.tokens[loc + 1]
 
         if prev_token.token_type == TokenType.VAR:
             left_item = Var(prev_token.text)
@@ -484,7 +522,7 @@ class Parser:
             left_item = int(prev_token.text)
 
         else:
-            raise ValueError("Invalid left item: {0}".format(prev_token.text))
+            raise ValueError(f"Invalid left item: {prev_token.text}")
 
         return left_item
 
@@ -531,7 +569,7 @@ class Parser:
         self.levels_map = self._get_levels_map()
 
         if not self.tokenizer.tokens:
-            return []
+            return None
 
         cur_level = 0
         bounds = (0, len(self.tokenizer.tokens) - 1)
