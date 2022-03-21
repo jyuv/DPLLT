@@ -37,13 +37,12 @@ tseitin_formulas_texts = ["(p & q)  |  !(q | r)",
                           "!((!(p & q)) -> !r)"
                           ]
 
-tseitin_expected_equivs = [[g0, Equiv(g0, Or(g1, g2)), Equiv(g1, And(p, q)),
-                           Equiv(g2, Negate(g3)), Equiv(g3, Or(q, r))],
+tseitin_expected_equivs = [
+    [g0, Equiv(g0, Or(g1, g2)), Equiv(g1, And(p, q)),
+     Equiv(g2, Negate(g3)), Equiv(g3, Or(q, r))],
 
-                           [g0, Equiv(g0, Negate(g1)),
-                           Equiv(g1, Imply(g2, Negate(r))),
-                           Equiv(g2, Negate(g3)), Equiv(g3, And(p, q))]
-                           ]
+    [g0, Equiv(g0, Negate(g1)), Equiv(g1, Imply(g2, Negate(r))),
+     Equiv(g2, Negate(g3)), Equiv(g3, And(p, q))]]
 
 
 @pytest.mark.parametrize("formula_text, expected_equivs_ands",

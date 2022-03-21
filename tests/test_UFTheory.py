@@ -1,3 +1,5 @@
+import pytest
+
 from constants import ResultCode
 from parsing.logical_blocks import Negate, Func, Equal, NEqual
 from theories.UFTheory import UFTheory
@@ -7,7 +9,7 @@ parser = Parser()
 
 a, b, c, d, s, t, r, x, y = [parser.parse(t) for t in "abcdstrxy"]
 
-g_x, g_a = [parser.parse("g({0})".format(t)) for t in "xa"]
+g_x, g_a = [parser.parse(f"g({t})") for t in "xa"]
 
 f_x, f_y, f_s, f_t, f_c, f_a = [parser.parse("f(" + t + ")") for t in
                                 "xystca"]
@@ -26,9 +28,10 @@ g_bc = Func("g", [b, c])
 f_fab_b = Func("f", [f_ab, b])
 g_fab_fbc = Func("g", [f_ab, f_bc])
 
+uf_theory = UFTheory()
+
 
 def test_case1():  # (f^3(a) = a) & (f^5(a) = a) & (f(a) != a)
-
     abs_literals_to_ints = {Equal(f_3a, a): 1,
                             NEqual(f_3a, a): -1,
                             Equal(f_5a, a): 2,
@@ -37,51 +40,51 @@ def test_case1():  # (f^3(a) = a) & (f^5(a) = a) & (f(a) != a)
                             NEqual(f_a, a): -3
                             }
 
-    t_solver = UFTheory()
-    t_solver.register_abstraction_map({v: k for (k, v) in
+    uf_theory.reset()
+    uf_theory.register_abstraction_map({v: k for (k, v) in
                                        abs_literals_to_ints.items()})
 
-    t_solver.process_assignment(1)
-    assert not t_solver.check_t_propagations()
-    assert not t_solver.is_t_conflict()
-    assert t_solver.analyze_satisfiability()[0] == ResultCode.SAT
-    assert not t_solver.pop_t_propagation()
+    uf_theory.process_assignment(1)
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert not uf_theory.pop_t_propagation()
 
-    t_solver.process_assignment(2)
-    assert t_solver.check_t_propagations()
-    assert not t_solver.is_t_conflict()
-    assert t_solver.analyze_satisfiability()[0] == ResultCode.SAT
-    assert t_solver.pop_t_propagation() == 3
+    uf_theory.process_assignment(2)
+    assert uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert uf_theory.pop_t_propagation() == 3
 
-    t_solver.process_assignment(-3)
-    assert not t_solver.check_t_propagations()
-    assert t_solver.is_t_conflict()
-    assert t_solver.analyze_satisfiability() == (ResultCode.UNSAT, {-1, -2, 3})
-    assert not t_solver.pop_t_propagation()
+    uf_theory.process_assignment(-3)
+    assert not uf_theory.check_t_propagations()
+    assert uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability() == (ResultCode.UNSAT, {-1, -2, 3})
+    assert not uf_theory.pop_t_propagation()
 
-    t_solver.conflict_recovery([])
-    assert not t_solver.check_t_propagations()
-    assert not t_solver.is_t_conflict()
-    assert t_solver.analyze_satisfiability()[0] == ResultCode.SAT
-    assert not t_solver.pop_t_propagation()
+    uf_theory.conflict_recovery([])
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert not uf_theory.pop_t_propagation()
 
-    t_solver.process_assignment(-3)
-    assert not t_solver.check_t_propagations()
-    assert t_solver.analyze_satisfiability()[0] == ResultCode.SAT
-    assert not t_solver.is_t_conflict()
-    assert not t_solver.pop_t_propagation()
+    uf_theory.process_assignment(-3)
+    assert not uf_theory.check_t_propagations()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert not uf_theory.is_t_conflict()
+    assert not uf_theory.pop_t_propagation()
 
-    t_solver.process_assignment(2)
-    assert not t_solver.check_t_propagations()
-    assert not t_solver.is_t_conflict()
-    assert t_solver.analyze_satisfiability()[0] == ResultCode.SAT
-    assert not t_solver.pop_t_propagation()
+    uf_theory.process_assignment(2)
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert not uf_theory.pop_t_propagation()
 
-    t_solver.process_assignment(-1)
-    assert not t_solver.check_t_propagations()
-    assert not t_solver.is_t_conflict()
-    assert t_solver.analyze_satisfiability()[0] == ResultCode.SAT
-    assert not t_solver.pop_t_propagation()
+    uf_theory.process_assignment(-1)
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert not uf_theory.pop_t_propagation()
 
 
 def test_case2():
@@ -95,53 +98,53 @@ def test_case2():
                               NEqual(g_f_x, x): -4
                               }
 
-    t_solver_2 = UFTheory()
-    t_solver_2.register_abstraction_map({v: k for (k, v) in
+    uf_theory.reset()
+    uf_theory.register_abstraction_map({v: k for (k, v) in
                                          abs_literals_to_ints_2.items()})
 
-    t_solver_2.process_assignment(1)
-    assert not t_solver_2.check_t_propagations()
-    assert not t_solver_2.is_t_conflict()
-    assert t_solver_2.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.process_assignment(1)
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
-    assert not t_solver_2.pop_t_propagation()
+    assert not uf_theory.pop_t_propagation()
 
-    t_solver_2.process_assignment(2)
-    assert not t_solver_2.check_t_propagations()
-    assert not t_solver_2.is_t_conflict()
-    assert t_solver_2.analyze_satisfiability()[0] == ResultCode.SAT
-    assert not t_solver_2.pop_t_propagation()
+    uf_theory.process_assignment(2)
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert not uf_theory.pop_t_propagation()
 
-    t_solver_2.process_assignment(-4)
-    assert not t_solver_2.check_t_propagations()
-    assert not t_solver_2.is_t_conflict()
-    assert t_solver_2.analyze_satisfiability()[0] == ResultCode.SAT
-    assert not t_solver_2.pop_t_propagation()
+    uf_theory.process_assignment(-4)
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert not uf_theory.pop_t_propagation()
 
-    t_solver_2.process_assignment(3)
-    assert not t_solver_2.check_t_propagations()
-    assert t_solver_2.is_t_conflict()
-    assert t_solver_2.analyze_satisfiability() == (ResultCode.UNSAT,
+    uf_theory.process_assignment(3)
+    assert not uf_theory.check_t_propagations()
+    assert uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability() == (ResultCode.UNSAT,
                                                    {-1, -2, 4, -3})
-    assert not t_solver_2.pop_t_propagation()
+    assert not uf_theory.pop_t_propagation()
 
-    t_solver_2.conflict_recovery([1, 2])
-    assert not t_solver_2.check_t_propagations()
-    assert not t_solver_2.is_t_conflict()
-    assert t_solver_2.analyze_satisfiability()[0] == ResultCode.SAT
-    assert not t_solver_2.pop_t_propagation()
+    uf_theory.conflict_recovery([1, 2])
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert not uf_theory.pop_t_propagation()
 
-    t_solver_2.process_assignment(-3)
-    assert not t_solver_2.check_t_propagations()
-    assert not t_solver_2.is_t_conflict()
-    assert t_solver_2.analyze_satisfiability()[0] == ResultCode.SAT
-    assert not t_solver_2.pop_t_propagation()
+    uf_theory.process_assignment(-3)
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert not uf_theory.pop_t_propagation()
 
-    t_solver_2.process_assignment(4)
-    assert not t_solver_2.check_t_propagations()
-    assert not t_solver_2.is_t_conflict()
-    assert t_solver_2.analyze_satisfiability()[0] == ResultCode.SAT
-    assert not t_solver_2.pop_t_propagation()
+    uf_theory.process_assignment(4)
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert not uf_theory.pop_t_propagation()
 
 
 def test_case3():
@@ -155,46 +158,45 @@ def test_case3():
                               NEqual(c, d): -4
                               }
 
-    t_solver_3 = UFTheory()
-    t_solver_3.register_abstraction_map({v: k for (k, v) in
+    uf_theory.reset()
+    uf_theory.register_abstraction_map({v: k for (k, v) in
                                          abs_literals_to_ints_3.items()})
 
-    t_solver_3.process_assignment(1)
-    assert t_solver_3.check_t_propagations()
-    assert not t_solver_3.is_t_conflict()
-    assert t_solver_3.analyze_satisfiability()[0] == ResultCode.SAT
-    assert t_solver_3.pop_t_propagation() == 2
+    uf_theory.process_assignment(1)
+    assert uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert uf_theory.pop_t_propagation() == 2
 
-    t_solver_3.process_assignment(-2)
-    assert not t_solver_3.check_t_propagations()
-    assert t_solver_3.is_t_conflict()
-    assert t_solver_3.analyze_satisfiability() == (ResultCode.UNSAT, {-1, 2})
-    assert not t_solver_3.pop_t_propagation()
+    uf_theory.process_assignment(-2)
+    assert not uf_theory.check_t_propagations()
+    assert uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability() == (ResultCode.UNSAT, {-1, 2})
+    assert not uf_theory.pop_t_propagation()
 
-    t_solver_3.conflict_recovery([1])
-    assert t_solver_3.check_t_propagations()
-    assert not t_solver_3.is_t_conflict()
-    assert t_solver_3.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.conflict_recovery([1])
+    assert uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
-    t_solver_3.process_assignment(3)
-    assert t_solver_3.check_t_propagations()
-    assert not t_solver_3.is_t_conflict()
-    assert t_solver_3.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.process_assignment(3)
+    assert uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
-    t_solver_3.process_assignment(2)
-    assert t_solver_3.check_t_propagations()
-    assert not t_solver_3.is_t_conflict()
-    assert t_solver_3.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.process_assignment(2)
+    assert uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
-    t_solver_3.process_assignment(4)
-    assert not t_solver_3.check_t_propagations()
-    assert not t_solver_3.is_t_conflict()
-    assert t_solver_3.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.process_assignment(4)
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
 
 # test case functions with arity = 2
 def test_case4():
-
     abs_literals_to_ints_4 = {Equal(a, b): 1,
                               NEqual(a, b): -1,
                               Equal(b, c): 2,
@@ -219,45 +221,44 @@ def test_case4():
                               NEqual(f_fab_b, g_fab_fbc): -10,
                               }
 
-    t_solver_4 = UFTheory()
-    t_solver_4.register_abstraction_map({v: k for (k, v) in
+    uf_theory.reset()
+    uf_theory.register_abstraction_map({v: k for (k, v) in
                                               abs_literals_to_ints_4.items()})
 
 
     # check a=b ^ b=c --> f(a,b) = f(b,c)
-    t_solver_4.process_assignment(1)
-    t_solver_4.process_assignment(2)
-    assert t_solver_4.check_t_propagations()
-    assert not t_solver_4.is_t_conflict()
-    assert t_solver_4.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.process_assignment(1)
+    uf_theory.process_assignment(2)
+    assert uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
     # check f=(a,b) ^ c=f(b,c) --> g(f(a,b), f(b,c)) = g(b,c)
-    t_solver_4.conflict_recovery([])
-    t_solver_4.process_assignment(6)
-    assert not t_solver_4.check_t_propagations()
-    t_solver_4.process_assignment(5)
-    assert t_solver_4.check_t_propagations()
-    assert not t_solver_4.is_t_conflict()
-    assert t_solver_4.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.conflict_recovery([])
+    uf_theory.process_assignment(6)
+    assert not uf_theory.check_t_propagations()
+    uf_theory.process_assignment(5)
+    assert uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
     # check c=f(a,b) ^ b = f(b,c) not implies g(f(a,b),f(b,c)) = g(b, c)
     # (wrong order)
-    t_solver_4.conflict_recovery([])
-    t_solver_4.process_assignment(9)
-    t_solver_4.process_assignment(8)
-    assert not t_solver_4.check_t_propagations()
-    assert not t_solver_4.is_t_conflict()
-    assert t_solver_4.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.conflict_recovery([])
+    uf_theory.process_assignment(9)
+    uf_theory.process_assignment(8)
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
     # check b=f(b,c) not implies f(f(a,b), b) = g(f(a,b), f(b,c))
-    t_solver_4.conflict_recovery([9])
-    assert not t_solver_4.check_t_propagations()
-    assert not t_solver_4.is_t_conflict()
-    assert t_solver_4.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.conflict_recovery([9])
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
 
 def test_case5():
-
     abs_literals_to_ints_5 = {Equal(a, b): 1,
                               NEqual(a, b): -1,
                               Equal(s, t): 2,
@@ -274,34 +275,34 @@ def test_case5():
                               NEqual(f_a, f_c): -7
                               }
 
-    t_solver_5 = UFTheory()
-    t_solver_5.register_abstraction_map({v: k for (k, v) in
+    uf_theory.reset()
+    uf_theory.register_abstraction_map({v: k for (k, v) in
                                               abs_literals_to_ints_5.items()})
 
-    t_solver_5.process_assignment(1)
-    t_solver_5.process_assignment(2)
-    assert t_solver_5.check_t_propagations()
-    assert not t_solver_5.is_t_conflict()
-    assert t_solver_5.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.process_assignment(1)
+    uf_theory.process_assignment(2)
+    assert uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
-    t_solver_5.process_assignment(3)
-    assert t_solver_5.check_t_propagations()
-    assert not t_solver_5.is_t_conflict()
-    assert t_solver_5.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.process_assignment(3)
+    assert uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
-    t_solver_5.process_assignment(4)
-    t_solver_5.process_assignment(6)
-    t_solver_5.process_assignment(-7)
-    assert t_solver_5.check_t_propagations()
-    assert t_solver_5.is_t_conflict()
-    assert t_solver_5.analyze_satisfiability() == (ResultCode.UNSAT,
+    uf_theory.process_assignment(4)
+    uf_theory.process_assignment(6)
+    uf_theory.process_assignment(-7)
+    assert uf_theory.check_t_propagations()
+    assert uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability() == (ResultCode.UNSAT,
                                                    {-1, -3, 7})
 
-    t_solver_5.conflict_recovery([1])
-    assert not t_solver_5.check_t_propagations()
-    assert not t_solver_5.is_t_conflict()
-    assert t_solver_5.analyze_satisfiability()[0] == ResultCode.SAT
-    assert not t_solver_5.pop_t_propagation()
+    uf_theory.conflict_recovery([1])
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert not uf_theory.pop_t_propagation()
 
 
 # check t_propagation of neq and combination of non eqs/neqs with eqs/neqs
@@ -316,30 +317,40 @@ def test_case6():
                               Negate(c): -4
                               }
 
-    t_solver_6 = UFTheory()
-    t_solver_6.register_abstraction_map({v: k for (k, v) in
+    uf_theory.reset()
+    uf_theory.register_abstraction_map({v: k for (k, v) in
                                               abs_literals_to_ints_6.items()})
 
-    t_solver_6.process_assignment(4)
-    t_solver_6.process_assignment(1)
-    t_solver_6.process_assignment(-2)
-    assert t_solver_6.check_t_propagations()
-    assert not t_solver_6.is_t_conflict()
-    assert t_solver_6.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.process_assignment(4)
+    uf_theory.process_assignment(1)
+    uf_theory.process_assignment(-2)
+    assert uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
-    t_solver_6.conflict_recovery([])
-    t_solver_6.process_assignment(-4)
-    assert not t_solver_6.check_t_propagations()
-    assert not t_solver_6.is_t_conflict()
-    assert t_solver_6.analyze_satisfiability()[0] == ResultCode.SAT
-    assert not t_solver_6.check_t_propagations()
+    uf_theory.conflict_recovery([])
+    uf_theory.process_assignment(-4)
+    assert not uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
+    assert not uf_theory.check_t_propagations()
 
-    t_solver_6.process_assignment(1)
-    t_solver_6.process_assignment(-2)
-    assert t_solver_6.check_t_propagations()
-    assert not t_solver_6.is_t_conflict()
-    assert t_solver_6.analyze_satisfiability()[0] == ResultCode.SAT
+    uf_theory.process_assignment(1)
+    uf_theory.process_assignment(-2)
+    assert uf_theory.check_t_propagations()
+    assert not uf_theory.is_t_conflict()
+    assert uf_theory.analyze_satisfiability()[0] == ResultCode.SAT
 
-    t_solver_6.process_assignment(3)
-    assert not t_solver_6.check_t_propagations()
-    assert t_solver_6.is_t_conflict()
+    uf_theory.process_assignment(3)
+    assert not uf_theory.check_t_propagations()
+    assert uf_theory.is_t_conflict()
+
+
+@pytest.mark.parametrize("formula_str", [
+    "[1, 2] < 5",
+    "[1, -2] >= 3"
+], ids=repr)
+def test_invalid_atom_types_check(formula_str):
+    formula = parser.parse(formula_str)
+    with pytest.raises(ValueError):
+        uf_theory.preprocess(formula)
