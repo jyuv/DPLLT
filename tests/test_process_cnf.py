@@ -61,7 +61,8 @@ expected_lit_formats = [
                          ids=formulas_text)
 def test_mapping_regular(formula_text, expected_lit_clauses):
     formula = parser.parse(formula_text)
-    lit_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(formula))
+    int_cnf_formula, abstraction_map, _ = to_abstract_cnf_conjunction(formula)
+    lit_clauses = to_lit_conjunction(int_cnf_formula, abstraction_map)
 
     assert lit_clauses == expected_lit_clauses
 
@@ -91,5 +92,38 @@ negations_expected_lit_clauses = [clauses_nequal_case,
                          ids=negations_eqs_formulas_texts)
 def test_mapping_negations_eqs(formula_text, expected_lit_clauses):
     formula = parser.parse(formula_text)
-    lit_clauses = to_lit_conjunction(*to_abstract_cnf_conjunction(formula))
+    int_cnf_formula, abstraction_map, _ = to_abstract_cnf_conjunction(formula)
+    lit_clauses = to_lit_conjunction(int_cnf_formula, abstraction_map)
+    assert lit_clauses == expected_lit_clauses
+
+
+func_args_negations_texts = ["p & f(q, !r)",
+                             "p & f(!q, !r)",
+                             "p & f(f(q, !r), !r)",
+                             "p & f(f(q, !r), !q)"
+                            ]
+
+func_args_negations_expected_lit_clauses = [
+    [{g0}, {neg_g0, p}, {neg_g0, f_q_n0}, {neg_p, Negate(f_q_n0), g0},
+     {neq_r_n0}],
+
+    [{g0}, {neg_g0, p}, {neg_g0, f_n0_n1}, {neg_p, Negate(f_n0_n1), g0},
+     {neq_q_n0}, {neq_r_n1}],
+
+    [{g0}, {neg_g0, p}, {neg_g0, f_f_q_n0_n0}, {neg_p, Negate(f_f_q_n0_n0), g0},
+     {neq_r_n0}],
+
+    [{g0}, {neg_g0, p}, {neg_g0, f_f_q_n0_n1}, {neg_p, Negate(f_f_q_n0_n1), g0},
+     {neq_r_n0}, {neq_q_n1}]
+]
+
+
+@pytest.mark.parametrize("formula_text, expected_lit_clauses",
+                         zip(func_args_negations_texts,
+                             func_args_negations_expected_lit_clauses),
+                         ids=func_args_negations_texts)
+def test_mapping_func_args_negations(formula_text, expected_lit_clauses):
+    formula = parser.parse(formula_text)
+    int_cnf_formula, abstraction_map, _ = to_abstract_cnf_conjunction(formula)
+    lit_clauses = to_lit_conjunction(int_cnf_formula, abstraction_map)
     assert lit_clauses == expected_lit_clauses

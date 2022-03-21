@@ -1,6 +1,6 @@
 from __future__ import annotations
-from parsing.logical_blocks import Var, Equiv, Imply, BinaryOp, UnaryOp, \
-    Negate, Or, And, NEqual, Func
+from parsing.logical_blocks import Var, Equiv, Imply, BinaryOp, \
+    Negate, Or, And
 from bool_transforms.to_cnf import to_cnf
 
 
@@ -60,47 +60,5 @@ def _tseitin_helper(f, equivs_conjunction, dummy_tracker):
                                             Negate(f.item)))
 
 
-def _remove_negations_in_args_helper(f, to_add_neqs, dvar_tracker):
-    if isinstance(f, BinaryOp):
-        f.left = _remove_negations_in_args_helper(f.left, to_add_neqs,
-                                                  dvar_tracker)
-        f.right = _remove_negations_in_args_helper(f.right, to_add_neqs,
-                                                   dvar_tracker)
-        return f
-
-    elif isinstance(f, UnaryOp):
-        f.item = _remove_negations_in_args_helper(f.item, to_add_neqs,
-                                                  dvar_tracker)
-        return f
-
-    elif isinstance(f, Func):
-        new_args = []
-        for arg in f.args:
-            if isinstance(arg, Negate):
-                new_var = dvar_tracker.get_dummy(arg)
-                to_add_neqs[NEqual(arg.item, new_var)] = None
-                arg = new_var
-
-            elif isinstance(arg, Func):
-                arg = _remove_negations_in_args_helper(arg, to_add_neqs,
-                                                       dvar_tracker)
-            new_args.append(arg)
-        return Func(f.name, new_args)
-
-    else:
-        return f
-
-
-def _remove_negations_in_args(f):
-    to_add_neqs = dict()  # used as ordered set
-    dummy_var_tracker = DummyVarsTracker(init_name="#N")
-    f = _remove_negations_in_args_helper(f, to_add_neqs, dummy_var_tracker)
-    to_add_neqs = list(to_add_neqs.keys())
-    return f, to_add_neqs
-
-
 def tseitin_transform(f):
-    f, to_add_neqs = _remove_negations_in_args(f)
-    cnf_conjunction = [to_cnf(x) for x in _get_tseitin_equivs(f)]
-    cnf_conjunction.extend(to_add_neqs)
-    return cnf_conjunction
+    return [to_cnf(x) for x in _get_tseitin_equivs(f)]

@@ -1,8 +1,9 @@
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Union
 from parsing.logical_blocks import Var, Atom, BinaryOp, UnaryOp, Or, And,\
     Negate, NEqual, Equal, Func, Less, Geq
 
-from bool_transforms.tseitin_transform import tseitin_transform
+from bool_transforms.tseitin_transform import tseitin_transform,\
+    DummyVarsTracker
 
 
 def get_nested_literals(node: Atom, output_set: Set[Atom]) -> None:
@@ -59,23 +60,27 @@ def _create_literals_mapping(literals: Set[Atom]) -> Dict[Atom, int]:
     return mapping
 
 
+def to_equalities_with_no_negations_args(node: Union[Equal, NEqual]):
+    num_of_negs = 0
+    if isinstance(node.left, Negate):
+        node.left = node.left.item
+        num_of_negs += 1
+    if isinstance(node.right, Negate):
+        node.right = node.right.item
+        num_of_negs += 1
+
+    if num_of_negs % 2 == 1:
+        if isinstance(node, Equal):
+            return NEqual(node.left, node.right)
+        else:
+            return Equal(node.left, node.right)
+    else:
+        return node
+
+
 def _remove_negations_in_eqs_helper(node):
     if isinstance(node, Equal) or isinstance(node, NEqual):
-        num_of_negs = 0
-        if isinstance(node.left, Negate):
-            node.left = node.left.item
-            num_of_negs += 1
-        if isinstance(node.right, Negate):
-            node.right = node.right.item
-            num_of_negs += 1
-
-        if num_of_negs % 2 == 1:
-            if isinstance(node, Equal):
-                return NEqual(node.left, node.right)
-            else:
-                return Equal(node.left, node.right)
-        else:
-            return node
+        return to_equalities_with_no_negations_args(node)
 
     elif node.is_literal():
         return node
@@ -94,6 +99,56 @@ def _remove_negations_in_eqs(cnf_conjunction):
     for clause in cnf_conjunction:
         new_clauses.append(_remove_negations_in_eqs_helper(clause))
     return new_clauses
+
+
+def _remove_negations_in_func_args_helper(f, to_add_neqs, dvar_tracker,
+                                          dummy_map):
+    if isinstance(f, BinaryOp):
+        f.left = _remove_negations_in_func_args_helper(f.left, to_add_neqs,
+                                                       dvar_tracker, dummy_map)
+        f.right = _remove_negations_in_func_args_helper(f.right, to_add_neqs,
+                                                        dvar_tracker, dummy_map)
+        return f
+
+    elif isinstance(f, UnaryOp):
+        f.item = _remove_negations_in_func_args_helper(f.item, to_add_neqs,
+                                                       dvar_tracker, dummy_map)
+        return f
+
+    elif isinstance(f, Func):
+        new_args = []
+        for arg in f.args:
+            if isinstance(arg, Negate):
+                new_var = dvar_tracker.get_dummy(arg)
+                dummy_map[new_var] = arg
+                to_add_neqs[NEqual(arg.item, new_var)] = None
+                arg = new_var
+
+            elif isinstance(arg, Func):
+                arg = _remove_negations_in_func_args_helper(arg, to_add_neqs,
+                                                            dvar_tracker,
+                                                            dummy_map)
+            new_args.append(arg)
+        return Func(f.name, new_args)
+
+    else:
+        return f
+
+
+def _remove_negations_in_func_args(tseitin_clauses):
+    to_add_neqs = dict()  # used as ordered set
+    dummy_map = dict()
+    dummy_var_tracker = DummyVarsTracker(init_name="#N")
+
+    for i in range(len(tseitin_clauses)):
+        cur_cl = tseitin_clauses[i]
+        tseitin_clauses[i] = _remove_negations_in_func_args_helper(
+            cur_cl, to_add_neqs, dummy_var_tracker, dummy_map)
+
+    to_add_neqs = list(to_add_neqs.keys())
+    tseitin_clauses.extend(to_add_neqs)
+
+    return tseitin_clauses, dummy_map
 
 
 def _cnf_conjunction_to_ints(cnf_conjunction: List[Atom]):
@@ -115,11 +170,17 @@ def _cnf_conjunction_to_ints(cnf_conjunction: List[Atom]):
 
 def to_abstract_cnf_conjunction(raw_formula):
     cnf_conjunction = tseitin_transform(raw_formula)
+
+    # preprocess negations
     cnf_conjunction = _remove_negations_in_eqs(cnf_conjunction)
+    cnf_conjunction, dummy_map = _remove_negations_in_func_args(cnf_conjunction)
+
     int_cnf_formula, lit_to_int = _cnf_conjunction_to_ints(cnf_conjunction)
 
     # remove trivial clauses
     int_cnf_formula = [clause for clause in int_cnf_formula if
                        len({abs(lit) for lit in clause}) == len(clause)]
 
-    return int_cnf_formula, {v: k for (k, v) in lit_to_int.items()}
+    abstraction_map = {v: k for (k, v) in lit_to_int.items()}
+
+    return int_cnf_formula, abstraction_map, dummy_map

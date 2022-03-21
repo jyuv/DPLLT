@@ -42,7 +42,8 @@ tseitin_expected_equivs = [
      Equiv(g2, Negate(g3)), Equiv(g3, Or(q, r))],
 
     [g0, Equiv(g0, Negate(g1)), Equiv(g1, Imply(g2, Negate(r))),
-     Equiv(g2, Negate(g3)), Equiv(g3, And(p, q))]]
+     Equiv(g2, Negate(g3)), Equiv(g3, And(p, q))]
+]
 
 
 @pytest.mark.parametrize("formula_text, expected_equivs_ands",
@@ -51,29 +52,4 @@ tseitin_expected_equivs = [
 def test_tseitin_equivs(formula_text, expected_equivs_ands):
     formula = parser.parse(formula_text)
     expected_result = [to_cnf(equiv) for equiv in expected_equivs_ands]
-    assert tseitin_transform(formula) == expected_result
-
-
-args_negations_texts = ["p & f(q, !r)",
-                        "p & f(!q, !r)",
-                        "p & f(f(q, !r), !r)",
-                        "p & f(f(q, !r), !q)"
-                        ]
-
-negations_tseitins = [[g0, to_cnf(Equiv(g0, And(p, f_q_n0))), neq_r_n0],
-                      [g0, to_cnf(Equiv(g0, And(p, f_n0_n1))),
-                       neq_q_n0, neq_r_n1
-                       ],
-                      [g0, to_cnf(Equiv(g0, And(p, f_f_q_n0_n0))), neq_r_n0],
-                      [g0, to_cnf(Equiv(g0, And(p, f_f_q_n0_n1))),
-                       neq_r_n0, neq_q_n1
-                       ]
-                      ]
-
-
-@pytest.mark.parametrize("formula_text, expected_result",
-                         zip(args_negations_texts, negations_tseitins),
-                         ids=args_negations_texts)
-def test_tseitin_args_negations(formula_text, expected_result):
-    formula = parser.parse(formula_text)
     assert tseitin_transform(formula) == expected_result
