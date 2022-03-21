@@ -3,14 +3,19 @@ from __future__ import annotations
 import itertools
 import networkx as nx
 
-from collections import Iterable, deque
+from collections.abc import Iterable
+from collections import deque
 from typing import List, Union, Set, Dict, Tuple
 from constants import ResultCode
-from logical_blocks import Var, Negate, Func, Equal, NEqual, Atom
+from parsing.logical_blocks import Var, Negate, Func, Equal, NEqual, Atom, \
+    UnaryOp, BinaryOp
 from copy import deepcopy
-from theories.PropositionalTheory import PropositionalTheory
+from theories.PropositionalTheory import PropositionalTheory,\
+    PROPOSITIONAL_SUPPORTED_TYPES
 
 LiteralExpression = Union[Func, Var, Negate, Equal, NEqual]
+
+UF_SUPPORTED_TYPES = PROPOSITIONAL_SUPPORTED_TYPES + (Func, Equal, NEqual)
 
 
 class TheoryState(object):
@@ -36,11 +41,10 @@ def get_unique_terms(abstract_literals: Iterable[LiteralExpression])\
         -> Set[LiteralExpression]:
     expressions = set()
     for abs_lit in abstract_literals:
-        if isinstance(abs_lit, Var) or isinstance(abs_lit, Func) or\
-                (isinstance(abs_lit, Negate) and abs_lit.is_literal()):
+        if isinstance(abs_lit, (Var, Func, Negate)) and abs_lit.is_literal():
             _unique_expressions_helper(expressions, abs_lit)
 
-        elif isinstance(abs_lit, Equal) or isinstance(abs_lit, NEqual):
+        elif isinstance(abs_lit, (Equal, NEqual)):
             left, right = abs_lit.left, abs_lit.right
             _unique_expressions_helper(expressions, left)
             _unique_expressions_helper(expressions, right)
@@ -125,6 +129,7 @@ class CongruenceGraph:
 
 class UFTheory(PropositionalTheory):
     def __init__(self):
+        super(UFTheory, self).__init__(UF_SUPPORTED_TYPES)
         self.int_to_literal = None
 
         self.graph = None
@@ -139,8 +144,79 @@ class UFTheory(PropositionalTheory):
         self.assignment_to_state = None
         self.assignments_log = None
 
+    def reset(self):
+        self.int_to_literal = None
+
+        self.graph = None
+
+        self.unassigned_ints = None
+        self.eqs_neqs_ints = None
+        self.active_neqs = None
+
+        self.t_propagations_queue = None
+
+        self.cur_assignment = None
+        self.assignment_to_state = None
+        self.assignments_log = None
+
+    def _check_eqs_neqs_args_validity(self, formula):
+        if isinstance(formula, (Equal, NEqual)):
+            left_arg, right_arg = formula.left, formula.right
+            if not isinstance(left_arg, Atom) or\
+                    not isinstance(right_arg, Atom):
+
+                error_msg = f"In UFTheory both {type(formula)} args must" \
+                            f" be atoms. Got " \
+                            f"{type(left_arg)}, {type(right_arg)} instead"
+                raise ValueError(error_msg)
+
+            all_args_literals = left_arg.is_literal() and right_arg.is_literal()
+            any_args_eqs_neqs = any([isinstance(arg, (Equal, NEqual))
+                                     for arg in (left_arg, right_arg)])
+
+            if (not all_args_literals) or any_args_eqs_neqs:
+                error_msg = f"In UFTheory both {type(formula)} args must" \
+                            f" be literals. Got " \
+                            f"{type(left_arg)}, {type(right_arg)} instead."
+
+                raise ValueError(error_msg)
+
+        elif isinstance(formula, UnaryOp):
+            self._check_eqs_neqs_args_validity(formula.item)
+
+        elif isinstance(formula, BinaryOp):
+            self._check_eqs_neqs_args_validity(formula.left)
+            self._check_eqs_neqs_args_validity(formula.right)
+
+    def _check_funcs_args_validity(self, formula):
+        if isinstance(formula, Func):
+            for arg in formula.args:
+                if not arg.is_literal():
+                    error_msg = f"Functions args must be literals." \
+                                f" Got {type(arg)}"
+                    raise ValueError(error_msg)
+
+                elif isinstance(arg, (Equal, NEqual)):
+                    raise ValueError(f"Functions args can't be {type(arg)}")
+
+                elif isinstance(arg, Func):
+                    self._check_funcs_args_validity(arg)
+
+        elif isinstance(formula, UnaryOp):
+            self._check_funcs_args_validity(formula.item)
+
+        elif isinstance(formula, BinaryOp):
+            self._check_funcs_args_validity(formula.left)
+            self._check_funcs_args_validity(formula.right)
+
+    def _check_formula_validity(self, formula):
+        self._check_eqs_neqs_args_validity(formula)
+        self._check_funcs_args_validity(formula)
+
     def preprocess(self, formula: Atom):
-        return super().preprocess(formula)
+        super().preprocess(formula)
+        self._check_formula_validity(formula)
+        return formula
 
     def _adapt_and_register_map(self, abstraction_map):
         # convert var literal to v = True and Negate(Var) to v != True
@@ -180,7 +256,7 @@ class UFTheory(PropositionalTheory):
         for int_var in self.unassigned_ints:
             cur_lit = self.int_to_literal[int_var]
 
-            if isinstance(cur_lit, Equal) or isinstance(cur_lit, NEqual):
+            if isinstance(cur_lit, (Equal, NEqual)):
                 eqs_neqs_ints.add(int_var)
                 eqs_neqs_ints.add(-int_var)
 
@@ -268,9 +344,6 @@ class UFTheory(PropositionalTheory):
             last_removed = self.cur_assignment[next_assignment_len]
 
         return {-lit_int for lit_int in problem_core}
-
-    def is_same_rep(self, elem1, elem2):
-        return self.graph.get_rep(elem1) == self.graph.get_rep(elem2)
 
     def process_assignment(self, assignment_int: int):
         self.unassigned_ints.discard(abs(assignment_int))
