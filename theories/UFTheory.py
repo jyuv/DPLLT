@@ -403,3 +403,6 @@ class UFTheory(PropositionalTheory):
             self._remove_states_after(tuple(cur_assignment))
 
             return ResultCode.UNSAT, conflict_core
+
+    def to_pre_theory_assignment(self, assignment_map: Dict[Atom, bool]):
+        return super().to_pre_theory_assignment(assignment_map)

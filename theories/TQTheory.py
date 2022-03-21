@@ -1,5 +1,6 @@
+from __future__ import annotations
 from math import comb
-from typing import Union
+from typing import Union, Dict
 
 from constants import ResultCode
 from parsing.logical_blocks import Atom, Equal, And, Geq, NEqual, BinaryOp,\
@@ -43,6 +44,8 @@ class TQTheory(PropositionalTheory):
         self.simplex = scipy_max_simplex
         self.abstraction_map = None
         self.support_negative_vars = support_negative_vars
+        self.original_formula = None
+        self.positive_literals_in_original = set()
         self.reset()
 
     def reset(self):
@@ -52,9 +55,10 @@ class TQTheory(PropositionalTheory):
         self.simplex = scipy_max_simplex
         self.abstraction_map = None
         self.support_negative_vars = self.support_negative_vars
+        self.original_formula = None
+        self.positive_literals_in_original = set()
 
     def register_abstraction_map(self, abstraction_map):
-        self.reset()
         self.abstraction_map = abstraction_map
 
     def _preprocess_helper(self, tq_formula: Atom):
@@ -99,9 +103,28 @@ class TQTheory(PropositionalTheory):
                             f" int. Got {left_type}, {right_type} instead"
                 raise ValueError(error_msg)
 
+    def _register_original_positive_literals(self, formula: Atom):
+        if isinstance(formula, (Equal, Geq)):
+            self.positive_literals_in_original.add(formula)
+        elif isinstance(formula, NEqual):
+            self.positive_literals_in_original.add(Equal(formula.left,
+                                                         formula.right))
+        elif isinstance(formula, Less):
+            self.positive_literals_in_original.add(Geq(formula.left,
+                                                       formula.right))
+
+        elif isinstance(formula, UnaryOp):
+            self._register_original_positive_literals(formula.item)
+
+        elif isinstance(formula, BinaryOp):
+            self._register_original_positive_literals(formula.left)
+            self._register_original_positive_literals(formula.right)
+
     def preprocess(self, tq_formula: Atom):
+        self.reset()
         super().preprocess(tq_formula)
         self._check_args_validity(tq_formula)
+        self._register_original_positive_literals(tq_formula)
         return self._preprocess_helper(tq_formula)
 
     def _translate_unconstrained_to_standard(self, a):
@@ -182,3 +205,32 @@ class TQTheory(PropositionalTheory):
 
     def pop_t_propagation(self):
         return None
+
+    def to_pre_theory_assignment(self, assignment_map: Dict[Atom, bool]):
+        if not self.original_formula:
+            return assignment_map
+
+        # adds =, != which were removed during preprocessing
+        eqs_in_original_formula = [lit for lit in
+                                   self.positive_literals_in_original
+                                   if isinstance(lit, Equal)]
+
+        for eq in eqs_in_original_formula:
+            converted_eq = _convert_equality(eq)
+            eq_equivs = (converted_eq.left, converted_eq.right)
+            if all([e in assignment_map.keys() for e in eq_equivs]):
+                num_true_equivs = sum(assignment_map[e] for e in eq_equivs)
+                if num_true_equivs == 2:
+                    assignment_map[eq] = True
+                else:
+                    assignment_map[eq] = False
+
+        # removes >=, < that were added in preprocessing and not existed before
+        geqs_in_assignment_map = [k for k in assignment_map.keys() if
+                                  isinstance(k, Geq)]
+
+        for geq in geqs_in_assignment_map:
+            if geq not in self.positive_literals_in_original:
+                del assignment_map[geq]
+
+        return assignment_map

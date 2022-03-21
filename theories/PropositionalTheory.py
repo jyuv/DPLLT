@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Union, Set, Tuple, Any
+from typing import Union, Set, Tuple, Dict
 from constants import ResultCode
 from parsing.logical_blocks import UnaryOp, BinaryOp, Atom, Var, And, Or,\
     Imply, Equiv, Negate
@@ -49,3 +49,8 @@ class PropositionalTheory:
     @abstractmethod
     def reset(self):
         pass
+
+    @abstractmethod
+    def to_pre_theory_assignment(self, assignment_map: Dict[Atom, bool]):
+        return assignment_map
+
