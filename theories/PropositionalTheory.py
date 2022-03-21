@@ -1,56 +1,51 @@
-from typing import Union
+from abc import abstractmethod
+from typing import Union, Set, Tuple, Any
 from constants import ResultCode
-from logical_blocks import NEqual, Equal, UnaryOp, BinaryOp, Func, Atom
+from parsing.logical_blocks import UnaryOp, BinaryOp, Atom, Var, And, Or,\
+    Imply, Equiv, Negate
+
+PROPOSITIONAL_SUPPORTED_TYPES = (Var, And, Or, Imply, Equiv, Negate)
 
 
 class PropositionalTheory:
+    def __init__(self, allowed_atoms_types: Tuple[type, ...] =
+                 PROPOSITIONAL_SUPPORTED_TYPES):
+        self.allowed_atoms_types = allowed_atoms_types
+
+    @abstractmethod
     def preprocess(self, formula: Atom):
-        self._check_eqs_neqs_args_validity(formula)
-        self._check_funcs_args_validity(formula)
+        self._check_atom_types_validity(formula)
         return formula
 
-    def _check_eqs_neqs_args_validity(self, formula):
-        if isinstance(formula, Equal) or isinstance(formula, NEqual):
-            left_arg, right_arg = formula.left, formula.right
-            all_args_literals = left_arg.is_literal() and right_arg.is_literal()
-            any_args_eqs_neqs = any([isinstance(arg, Equal) or
-                                     isinstance(arg, NEqual)
-                                     for arg in (left_arg, right_arg)])
-
-            if (not all_args_literals) or any_args_eqs_neqs:
-                raise ValueError("Arguments of Equal/NEqual must be literals")
-        elif isinstance(formula, UnaryOp):
-            self._check_eqs_neqs_args_validity(formula.item)
+    def _check_atom_types_validity(self, formula: Atom):
+        if not isinstance(formula, self.allowed_atoms_types):
+            raise ValueError(f"{type(formula)} is not supported by theory")
         elif isinstance(formula, BinaryOp):
-            self._check_eqs_neqs_args_validity(formula.left)
-            self._check_eqs_neqs_args_validity(formula.right)
-
-    def _check_funcs_args_validity(self, formula):
-        if isinstance(formula, Func):
-            all_args_literals = all([arg.is_literal() for arg in formula.args])
-            any_args_eqs_neqs = any([isinstance(arg, Equal) or
-                                     isinstance(arg, NEqual)
-                                     for arg in formula.args])
-
-            if (not all_args_literals) or any_args_eqs_neqs:
-                raise ValueError("Arguments of functions must be literals")
+            self._check_atom_types_validity(formula.left)
+            self._check_atom_types_validity(formula.right)
         elif isinstance(formula, UnaryOp):
-            self._check_funcs_args_validity(formula.item)
-        elif isinstance(formula, BinaryOp):
-            self._check_funcs_args_validity(formula.left)
-            self._check_funcs_args_validity(formula.right)
+            self._check_atom_types_validity(formula.item)
 
+    @abstractmethod
     def register_abstraction_map(self, abstraction_map):
         pass
 
+    @abstractmethod
     def process_assignment(self, literal):
         pass
 
-    def analyze_satisfiability(self) -> (ResultCode, Union[None, int]):
+    @abstractmethod
+    def analyze_satisfiability(self) -> (ResultCode, Union[None, Set[int]]):
         return ResultCode.SAT, None
 
+    @abstractmethod
     def pop_t_propagation(self):
         return None
 
+    @abstractmethod
     def conflict_recovery(self, assignment):
+        pass
+
+    @abstractmethod
+    def reset(self):
         pass
