@@ -29,13 +29,14 @@ class DPLL:
 
     def _init_case(self, formula, to_abstract):
         self.original_formula = formula
-        self.smt_formula = self.theory.preprocess(formula)
         if to_abstract:
+            self.smt_formula = self.theory.preprocess(formula)
             self.cnf_abstraction, self.abstraction_map = \
                 to_abstract_cnf_conjunction(self.smt_formula)
             self.theory.register_abstraction_map(self.abstraction_map)
 
         else:
+            self.smt_formula = formula
             self.cnf_abstraction = self.smt_formula
 
         self.sat_solver.reset()
