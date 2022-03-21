@@ -211,3 +211,40 @@ def test_unsat_assignments_negatives_dependent(assignments_seq):
 
     assert theory_with_negatives.analyze_satisfiability() == sat_result
     assert theory_without_negatives.analyze_satisfiability() == unsat_result
+
+
+@pytest.mark.parametrize("formula_str", [
+    "[1, 2] < [1, 2]",
+    "3 >= 2",
+    "3 = 4",
+    "[1, 2] = [1, 2]",
+    "5 != 3",
+    "[1, 2] != [2, 1]",
+    "([1, 2, 3] < 5) -> (([1, 1] = 5) & ([1, -1] != [1]))"
+], ids=repr)
+def test_invalid_args(formula_str):
+    formula = parser.parse(formula_str)
+    with pytest.raises(ValueError):
+        theory_with_negatives.preprocess(formula)
+
+
+equalities_raw_strs = [
+    "[3, 1] = 5",
+    "[3, 1] != 5",
+    "([1, 1] < 2) & (([1, 2] >= 5) | ([3, 1] = 5))"
+]
+
+equalities_preprocessed_strs = [
+    "([3, 1] >= 5) & ([-3, -1] >= -5)",
+    "!(([3, 1] >= 5) & ([-3, -1] >= -5))",
+    "([1, 1] < 2) & (([1, 2] >= 5) | (([3, 1] >= 5) & ([-3, -1] >= -5)))"
+]
+
+
+@pytest.mark.parametrize("formula_str, expected_formula_str",
+                         zip(equalities_raw_strs, equalities_preprocessed_strs),
+                         ids=equalities_raw_strs)
+def test_preprocess_equalities(formula_str, expected_formula_str):
+    formula = parser.parse(formula_str)
+    expected_formula = parser.parse(expected_formula_str)
+    assert theory_with_negatives.preprocess(formula) == expected_formula
