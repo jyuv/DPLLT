@@ -1,10 +1,12 @@
 from __future__ import annotations
-from parsing.logical_blocks import Atom, Var
+from parsing.logical_blocks import Atom, Var, Func, Less, Geq, NEqual, Equal, \
+    BinaryOp, UnaryOp
 from typing import List, Dict
 from solvers import SATSolver
 from constants import ResultCode
 from theories.PropositionalTheory import PropositionalTheory
-from bool_transforms.process_cnf import to_abstract_cnf_conjunction
+from bool_transforms.process_cnf import to_abstract_cnf_conjunction, \
+    to_equalities_with_no_negations_args
 
 
 def _translate_valid_assignment(sat_assignment: List[int],
@@ -31,7 +33,7 @@ class DPLL:
         self.original_formula = formula
         if to_abstract:
             self.smt_formula = self.theory.preprocess(formula)
-            self.cnf_abstraction, self.abstraction_map = \
+            self.cnf_abstraction, self.abstraction_map, self.dummy_map = \
                 to_abstract_cnf_conjunction(self.smt_formula)
             self.theory.register_abstraction_map(self.abstraction_map)
 
@@ -40,6 +42,7 @@ class DPLL:
             self.cnf_abstraction = self.smt_formula
 
         self.sat_solver.reset()
+        self.to_abstract = to_abstract
 
     def _register_clauses(self, clauses):
         for clause in clauses:
@@ -121,6 +124,104 @@ class DPLL:
 
         return ResultCode.UNDECIDED
 
+    def _replace_dummy_helper(self, atom):
+        if isinstance(atom, Func):
+            new_args = []
+            for arg in atom.args:
+                if arg in self.dummy_map.keys():
+                    arg = self.dummy_map[arg]
+
+                elif isinstance(arg, Func):
+                    arg = self._replace_dummy_helper(arg)
+                new_args.append(arg)
+            return Func(atom.name, new_args)
+
+        elif isinstance(atom, (Equal, NEqual, Geq, Less)):
+            atom.left = self._replace_dummy_helper(atom.left)
+            atom.right = self._replace_dummy_helper(atom.right)
+
+        return atom
+
+    def _get_all_original_equalities_helper(self, formula, equalities_set):
+        if isinstance(formula, BinaryOp):
+            self._get_all_original_equalities_helper(formula.left,
+                                                     equalities_set)
+
+            self._get_all_original_equalities_helper(formula.right,
+                                                     equalities_set)
+
+        elif isinstance(formula, UnaryOp):
+            self._get_all_original_equalities_helper(formula.item,
+                                                     equalities_set)
+
+        elif isinstance(formula, Func):
+            for arg in formula.args:
+                if isinstance(arg, Equal):
+                    equalities_set.add(arg)
+                elif isinstance(arg, NEqual):
+                    equalities_set.add(Equal(arg.left, arg.right))
+                elif isinstance(arg, Func):
+                    self._get_all_original_equalities_helper(arg,
+                                                             equalities_set)
+
+        elif isinstance(formula, Equal):
+            equalities_set.add(formula)
+
+        elif isinstance(formula, NEqual):
+            equalities_set.add(Equal(formula.left, formula.right))
+
+    def _get_all_original_equalities(self):
+        all_original_equalities = set()
+        self._get_all_original_equalities_helper(self.original_formula,
+                                                 all_original_equalities)
+        return all_original_equalities
+
+    def _assignment_to_original_form(self):
+        assignment_map = dict()
+        cur_assignment = self.sat_solver.assignment
+
+        if self.to_abstract:
+            for lit_int in cur_assignment:
+                if lit_int > 0:
+                    assignment_map[self.abstraction_map[lit_int]] = True
+                else:
+                    assignment_map[self.abstraction_map[-lit_int]] = False
+            assignment_map = self.theory.to_pre_theory_assignment(
+                assignment_map)
+
+            # replace to original equalities with negated args
+            all_original_equalities = self._get_all_original_equalities()
+            for eq in all_original_equalities:
+                processed_eq = to_equalities_with_no_negations_args(eq)
+                if processed_eq in assignment_map.keys() and eq != processed_eq:
+                    assignment_map[eq] = assignment_map[processed_eq]
+                    del assignment_map[processed_eq]
+
+            # replace Dummy vars inside functions args
+            # (were added because of negations during processing formula)
+            pre_replace_lits = list(assignment_map.keys())
+            for lit in pre_replace_lits:
+                new_lit = self._replace_dummy_helper(lit)
+                if new_lit != lit:
+                    assignment_map[new_lit] = assignment_map[lit]
+                    del assignment_map[lit]
+
+            # remove dummy vars
+            pre_replace_lits = list(assignment_map.keys())
+            for lit in pre_replace_lits:
+                if isinstance(lit, Var) and lit.name.startswith("#"):
+                    del assignment_map[lit]
+
+            return assignment_map
+
+        else:
+            for lit_int in cur_assignment:
+                if lit_int > 0:
+                    assignment_map[lit_int] = True
+                else:
+                    assignment_map[-lit_int] = False
+            return assignment_map
+
     def solve(self, formula, to_abstract=True):
         self._init_case(formula, to_abstract)
 
@@ -161,7 +262,9 @@ class DPLL:
                         self.sat_solver.d_level += 1
                         self._assign_literal(literal_to_assign, None)
 
-        return ResultCode.SAT, self.sat_solver.assignment
+        original_form_assignment = self._assignment_to_original_form()
+        return ResultCode.SAT, original_form_assignment
+        # return ResultCode.SAT, self.sat_solver.assignment
 
 
 class DPLLT (DPLL):

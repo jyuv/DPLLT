@@ -1,7 +1,7 @@
 import pytest
 from constants import ResultCode
 from solvers.DPLLT import DPLL
-from tests.test_utils import verify_assignment
+from tests.test_utils import verify_abstracted_assignment
 
 
 dpll = DPLL()
@@ -307,4 +307,6 @@ def test_sat_solver(formula_ints, expected_result_code):
     result_code, satisfying_assignment = dpll.solve(formula_ints,
                                                     to_abstract=False)
     assert result_code == expected_result_code
-    assert verify_assignment(formula_ints, satisfying_assignment)
+
+    if expected_result_code == ResultCode.SAT:
+        assert verify_abstracted_assignment(formula_ints, satisfying_assignment)

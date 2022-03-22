@@ -5,7 +5,7 @@ from parsing.logical_blocks import Or, And, Imply, Negate
 from parsing.parse import Parser
 
 from solvers.DPLLT import DPLLT
-from tests.test_utils import verify_assignment
+from tests.test_utils import verify_unabstracted_assignment
 from theories.TQTheory import TQTheory
 
 solver_with_negatives = DPLLT(TQTheory(support_negative_vars=True))
@@ -54,11 +54,10 @@ def test_simple_cases_with_negatives(formula_str, expected_result_code):
 
     result_code = result_with_negatives[RESULT_CODE_LOC]
     assignment = result_with_negatives[ASSIGNMENT_LOC]
-    int_clauses_sets = [c.literals for c in
-                        solver_with_negatives.sat_solver.clauses]
 
     assert result_code == expected_result_code
-    assert verify_assignment(int_clauses_sets, assignment)
+    if expected_result_code == ResultCode.SAT:
+        assert verify_unabstracted_assignment(formula, assignment)
 
 
 @pytest.mark.parametrize("formula_str, expected_result_code",
@@ -71,11 +70,11 @@ def test_simple_cases_without_negatives(formula_str, expected_result_code):
 
     result_code = result_without_negatives[RESULT_CODE_LOC]
     assignment = result_without_negatives[ASSIGNMENT_LOC]
-    int_clauses_sets = [c.literals for c in
-                        solver_without_negatives.sat_solver.clauses]
 
-    assert verify_assignment(int_clauses_sets, assignment)
     assert result_code == expected_result_code
+
+    if expected_result_code == ResultCode.SAT:
+        assert verify_unabstracted_assignment(formula, assignment)
 
 
 def test_big_case():
@@ -106,11 +105,10 @@ def test_big_case():
     assert res_with_negatives[RESULT_CODE_LOC] == ResultCode.SAT
     assert res_without_negatives[RESULT_CODE_LOC] == ResultCode.SAT
 
-    int_clauses_sets = [c.literals for c in
-                        solver_with_negatives.sat_solver.clauses]
-
     with_negatives_assignment = res_with_negatives[ASSIGNMENT_LOC]
     without_negatives_assignment = res_without_negatives[ASSIGNMENT_LOC]
 
-    assert verify_assignment(int_clauses_sets, with_negatives_assignment)
-    assert verify_assignment(int_clauses_sets, without_negatives_assignment)
+    assert verify_unabstracted_assignment(formula,
+                                          with_negatives_assignment)
+    assert verify_unabstracted_assignment(formula,
+                                          without_negatives_assignment)
