@@ -1,7 +1,28 @@
+"""
+General Notes
+-------------
+An implementation of DPLLT (framework for determining satisfiability of SMT
+problems (problems which generalize SAT problems to involve additional theory).
+
+The DPLLT is using the lazy approach to combine the theory solver
+(which compiles with PropositionalTheory interface) with the SAT solver.
+
+As a simplified facade of the DPLLT a DPLL solver is provided which runs
+the SAT solver using CDCL logic.
+
+The solve method of the classes returns a tuple:
+    (ResultCode.SAT/UNSAT, assignment)
+    The assignment returned is a SAT assignment for SAT code and None for UNSAT.
+    The assignment is returned in the form of the original formula provided
+    (converting back all the dummy variables).
+"""
+
 from __future__ import annotations
-from parsing.logical_blocks import Atom, Var, Func, Less, Geq, NEqual, Equal, \
-    BinaryOp, UnaryOp
-from typing import List, Dict
+
+from typing import Optional, List, Set, Union, Dict, Tuple
+
+from parsing.logical_blocks import Var, Func, Less, Geq, NEqual, Equal, \
+    BinaryOp, UnaryOp, Atom
 from solvers import SATSolver
 from constants import ResultCode
 from theories.PropositionalTheory import PropositionalTheory
@@ -9,27 +30,24 @@ from bool_transforms.process_cnf import to_abstract_cnf_conjunction, \
     to_equalities_with_no_negations_args
 
 
-def _translate_valid_assignment(sat_assignment: List[int],
-                                int_to_lit: Dict[int, Atom]):
-    valid_assignment = dict()
-    for val in sat_assignment:
-        cur_literal = int_to_lit[val]
-        cur_abs_literal = int_to_lit[abs(val)]
-        is_var = isinstance(cur_abs_literal, Var)
-        if not (is_var and cur_abs_literal.name.startswith("#")):
-            if val > 0:
-                valid_assignment[cur_literal] = True
-            else:
-                valid_assignment[cur_abs_literal] = False
-    return valid_assignment
-
-
-class DPLL:
-    def __init__(self):
+class DPLLT:
+    def __init__(self, theory: PropositionalTheory = None) -> None:
         self.sat_solver = SATSolver.Solver()
-        self.theory = PropositionalTheory()
+        if theory:
+            self.theory = theory
+        else:
+            self.theory = PropositionalTheory()
 
-    def _init_case(self, formula, to_abstract):
+    def _init_case(self, formula: Union[List[Set[int]], Atom],
+                   to_abstract: bool) -> None:
+        """
+        Init the solver case to solve
+        :param formula: Either the root of logical formula or
+        list of sets of ints representing a conjunction of clauses
+        :param to_abstract: Boolean of whether to abstract the formula
+        (transform to CNF made of ints mapped to the literals in
+        the original formula)
+        """
         self.original_formula = formula
         if to_abstract:
             self.smt_formula = self.theory.preprocess(formula)
@@ -44,8 +62,18 @@ class DPLL:
         self.sat_solver.reset()
         self.to_abstract = to_abstract
 
-    def _register_clauses(self, clauses):
-        for clause in clauses:
+    def _register_clauses(self, set_clauses: List[Set[int]]) -> ResultCode:
+        """
+        Register a list of clauses to the SAT solver and try to deduce
+        from each one to start building the trivial part of the assignment
+        early.
+        :param set_clauses: A list of set of ints representing a list of clauses
+        to be added
+        :return: The ResultCode at the end of the clauses registration (if
+        a conflict occured due to the trivial deduction the case is UNSAT
+        and the method breaks early.
+        """
+        for clause in set_clauses:
             clause_id = self.sat_solver.add_clause(clause)
             d_result, suggested_assignment = self.sat_solver.deduce(clause_id)
 
@@ -57,19 +85,38 @@ class DPLL:
                 return ResultCode.UNSAT
         return ResultCode.UNDECIDED
 
-    def _assign_literal(self, literal, antecedent):
-        self.sat_solver.assign_literal(literal, antecedent)
+    def _assign_literal(self, literal: int, antecedent_id: Optional[int])\
+            -> None:
+        """
+        Updates both SAT solver and theory solver about an assignment
+        :param literal: Int representing the literal to be assigned to True
+        :param antecedent_id: Int representing the antecedent clause the
+        assignment
+        was deduced from. None if there is no such clause.
+        """
+        self.sat_solver.assign_literal(literal, antecedent_id)
         self.theory.process_assignment(literal)
 
-    def _handle_conflict(self, start_clause):
+    def _handle_conflict(self, start_set_clause: Optional[Set[int]])\
+            -> ResultCode:
+        """
+        Handle a conflict situation on both SAT solver and theory solver,
+        restoring their states and learn a new clause to reduce the searching
+        tree.
+        :param start_set_clause: A clause causing the conflict if the it's a theory
+        conflict. None if the conflict is derived from the SAT solver (in that
+        case the conflict is easily derived by the implication graph).
+        :return: ResultCode of the solver after the conflict was handled.
+        """
         if self.sat_solver.d_level == 0:
             return ResultCode.UNSAT
 
-        new_clause, new_d_level = self.sat_solver.resolve_conflict(start_clause)
+        new_set_clause, new_d_level = self.sat_solver.resolve_conflict(
+            start_set_clause)
         new_partial_assignment = self.sat_solver.backjump(new_d_level)
         self.theory.conflict_recovery(new_partial_assignment)
 
-        learned_cl_id = self.sat_solver.add_clause(new_clause)
+        learned_cl_id = self.sat_solver.add_clause(new_set_clause)
         d_result, suggested_assignment = self.sat_solver.deduce(learned_cl_id)
 
         if d_result == SATSolver.ResultCode.SAT:
@@ -77,7 +124,15 @@ class DPLL:
 
         return ResultCode.UNDECIDED
 
-    def _confront_with_theory(self, handle_conflict: bool):
+    def _confront_with_theory(self, handle_conflict: bool) -> ResultCode:
+        """
+        Confront the solver current state against the theory and
+        if handle_conflict try to handle the conflict if such emerge
+        :param handle_conflict: Boolean of whether to try to handle
+        a conflict if such emerge.
+        :return: The ResultCode of the state of the solver against the theory
+        when leaving the function.
+        """
         t_result, t_clause = self.theory.analyze_satisfiability()
         if t_result == ResultCode.UNSAT:
             if handle_conflict:
@@ -89,7 +144,11 @@ class DPLL:
                 return ResultCode.UNSAT
         return ResultCode.SAT
 
-    def _bcp_step(self):
+    def _bcp_step(self) -> ResultCode:
+        """
+        Perform a single bcp step trying to deduce an assignment from clause.
+        :return: The ResultCode of the case after the bcp step.
+        """
         d_result, suggested_literal, deduced_from = self.sat_solver.bcp_step()
 
         if d_result in (ResultCode.SAT, ResultCode.CONFLICT):
@@ -104,7 +163,13 @@ class DPLL:
 
         return d_result
 
-    def _perform_bcp(self, handle_conflict: bool):
+    def _perform_bcp(self, handle_conflict: bool) -> ResultCode:
+        """
+        Exhaust bcp steps as long as possible
+        :param handle_conflict: Boolean value to whether to handle conflict
+        if one appears.
+        :return: ResultCode at the end
+        """
         bcp_step_result = self._bcp_step()
         while bcp_step_result not in (None, ResultCode.SAT,
                                       ResultCode.CONFLICT):
@@ -124,7 +189,13 @@ class DPLL:
 
         return ResultCode.UNDECIDED
 
-    def _replace_dummy_helper(self, atom):
+    def _replace_dummy_helper(self, atom: Atom) -> Atom:
+        """
+        Recursive helper function to replace dummy variables
+        using self.dummy_map
+        :param atom: The root of the formula to currently be processed
+        :return: The root of the equivalent processed formula (without dummies)
+        """
         if isinstance(atom, Func):
             new_args = []
             for arg in atom.args:
@@ -142,7 +213,15 @@ class DPLL:
 
         return atom
 
-    def _get_all_original_equalities_helper(self, formula, equalities_set):
+    def _get_all_original_equalities_helper(self, formula: Atom,
+                                            equalities_set: Set[Equal]) -> None:
+        """
+        A recursive helper function to extract from the given formula all
+        the equalities and equalities which are negations
+        of NEquals in the formula, into equalities_set
+        :param formula: The root of the logical formula to examine
+        :param equalities_set: A set to append equalities found
+        """
         if isinstance(formula, BinaryOp):
             self._get_all_original_equalities_helper(formula.left,
                                                      equalities_set)
@@ -171,12 +250,22 @@ class DPLL:
             equalities_set.add(Equal(formula.left, formula.right))
 
     def _get_all_original_equalities(self):
+        """
+        Get all the equalities appearing in the original formula and equalities
+        which are negations of NEquals in the original formula.
+        :return: A set of all original equalities in the original formula
+        """
         all_original_equalities = set()
         self._get_all_original_equalities_helper(self.original_formula,
                                                  all_original_equalities)
         return all_original_equalities
 
-    def _assignment_to_original_form(self):
+    def _assignment_to_original_form(self) -> Dict[Union[Atom, int], bool]:
+        """
+        Convert the assignment of ints to assignment of logical atoms
+        :return: The assignment converted to assignment of the respective
+        logical atoms.
+        """
         assignment_map = dict()
         cur_assignment = self.sat_solver.assignment
 
@@ -222,7 +311,17 @@ class DPLL:
                     assignment_map[-lit_int] = False
             return assignment_map
 
-    def solve(self, formula, to_abstract=True):
+    def solve(self, formula: Union[List[Set[int]], Atom],
+              to_abstract: bool = True) \
+            -> Tuple[ResultCode, Optional[Dict[Union[int, Atom], bool]]]:
+        """
+        Solve the given formula using this DPLLT solver
+        :param formula: Either root of logical formula or list of sets of ints
+        representing a conjunction of clauses (CNF form).
+        :param to_abstract: boolean of whether to abstract a logical formula
+        :return: A tuple of ResultCode, satisfying assignment map in case
+        the result is SAT
+        """
         self._init_case(formula, to_abstract)
 
         if self._register_clauses(self.cnf_abstraction) == ResultCode.UNSAT:
@@ -258,20 +357,19 @@ class DPLL:
                         self._assign_literal(t_propagation, None)
 
                     else:
-                        literal_to_assign = self.sat_solver.dsil()
+                        literal_to_assign = self.sat_solver.decide()
                         self.sat_solver.d_level += 1
                         self._assign_literal(literal_to_assign, None)
 
         original_form_assignment = self._assignment_to_original_form()
         return ResultCode.SAT, original_form_assignment
-        # return ResultCode.SAT, self.sat_solver.assignment
 
 
-class DPLLT (DPLL):
-    def __init__(self, theory: PropositionalTheory = None):
-        super(DPLLT, self).__init__()
-        if theory is not None:
-            self.theory = theory
+class DPLL (DPLLT):
+    def __init__(self) -> None:
+        super(DPLL, self).__init__()
 
-    def solve(self, formula):
-        return super().solve(formula, to_abstract=True)
+    def solve(self, formula: Union[List[Set[int]], Atom],
+              to_abstract: bool = True) \
+            -> Tuple[ResultCode, Optional[Dict[Union[int, Atom], bool]]]:
+        return super(DPLL, self).solve(formula, to_abstract)
