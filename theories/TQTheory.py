@@ -1,3 +1,22 @@
+"""
+General Notes
+-------------
+An implementation of the theory of linear arithmetic over rational numbers.
+This theory supports basic logic operations and
+linear equations in the form of ax = b / ax < b (and the negated operations
+!=, >=) where a is a vector of numbers and b is a number.
+
+The theory remains sat as long as the linear programming problem composed of
+all the active linear equations has a solution.
+
+The theory allows by default for the Linear Programming solution to also be
+negative. It can be changed for the classical non-negative solution by setting
+the support_negative_vars argument to False.
+
+This module doesn't implement the LP solver. It uses scipy linprog "highs"
+solver.
+"""
+
 from __future__ import annotations
 from math import comb
 from typing import Union, Dict
@@ -49,6 +68,9 @@ class TQTheory(PropositionalTheory):
         self.reset()
 
     def reset(self):
+        """
+        Resets the theory object
+        """
         self.assignment = set()
         self.A = None
         self.b = None
@@ -59,6 +81,12 @@ class TQTheory(PropositionalTheory):
         self.positive_literals_in_original = set()
 
     def register_abstraction_map(self, abstraction_map):
+        """
+        Registers the abstraction map from int to actual literal object.
+        This helps the theory to interpret the int value assignments
+        :param abstraction_map: a dictionary mapping int to respective atom
+                                literal
+        """
         self.abstraction_map = abstraction_map
 
     def _preprocess_helper(self, tq_formula: Atom):
@@ -120,12 +148,17 @@ class TQTheory(PropositionalTheory):
             self._register_original_positive_literals(formula.left)
             self._register_original_positive_literals(formula.right)
 
-    def preprocess(self, tq_formula: Atom):
+    def preprocess(self, formula: Atom):
+        """
+        Called by the DPLLT solver to adapt the formula to the theory.
+        :param formula: formula to adapt
+        :return: the adapted formula after preprocess
+        """
         self.reset()
-        super().preprocess(tq_formula)
-        self._check_args_validity(tq_formula)
-        self._register_original_positive_literals(tq_formula)
-        return self._preprocess_helper(tq_formula)
+        super().preprocess(formula)
+        self._check_args_validity(formula)
+        self._register_original_positive_literals(formula)
+        return self._preprocess_helper(formula)
 
     def _translate_unconstrained_to_standard(self, a):
         # if so each x_i will be represented as x_i+ - x_i-
@@ -161,13 +194,22 @@ class TQTheory(PropositionalTheory):
         elif isinstance(lp_formula, Less):
             self._handle_Less_update(lp_formula)
 
-    def process_assignment(self, literal):
-        self.assignment.add(literal)
-        lp_formula = self.abstraction_map.get(literal)
+    def process_assignment(self, int_literal: int) -> None:
+        """
+        Process assignment of a literal by the theory
+        :param int_literal: an int value representing an atom literal
+        """
+        self.assignment.add(int_literal)
+        lp_formula = self.abstraction_map.get(int_literal)
         self._update_A_and_b(lp_formula)
 
-    def conflict_recovery(self, new_assignment):
-        self.assignment = set(new_assignment)
+    def conflict_recovery(self, assignment):
+        """
+        Recovers the theory to the state where its assignment is the given
+        assignment
+        :param assignment: an assignment to recover the state to
+        """
+        self.assignment = set(assignment)
         self.A = None
         self.b = None
         for literal in self.assignment:
@@ -175,6 +217,11 @@ class TQTheory(PropositionalTheory):
             self._update_A_and_b(lp_formula)
 
     def analyze_satisfiability(self) -> (ResultCode, Union[None, int]):
+        """
+        Checks if the current situation is contradicts with the theory or not.
+        :return: if contradicts returns (ResultCode.UNSAT, conflict_clause)
+                 else returns (ResultCode.SAT, None)
+        """
         if self.A is None:
             return ResultCode.SAT, None
 
@@ -204,9 +251,23 @@ class TQTheory(PropositionalTheory):
             return ResultCode.UNSAT, conflict_clause
 
     def pop_t_propagation(self):
+        """
+        Pops theory propagation suggestion if one exists for the current state.
+        :return: int value representing the suggested literal if propagation
+                 exists, None otherwise.
+        """
         return None
 
-    def to_pre_theory_assignment(self, assignment_map: Dict[Atom, bool]):
+    def to_pre_theory_assignment(self, assignment_map: Dict[Atom, bool]) -> \
+            Dict[Atom, bool]:
+        """
+        Converts the assignment map given into an assignment map which its
+        literals are in their pre theory processing form. It adds =, !=
+        that were added in the preprocessing and removes the >=, < that were
+        added during preprocessing
+        :param assignment_map: assignment map (atom -> bool) to convert
+        :return: the converted assignment map
+        """
         if not self.original_formula:
             return assignment_map
 

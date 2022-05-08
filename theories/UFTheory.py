@@ -1,3 +1,29 @@
+"""
+General Notes
+-------------
+An implementation of the theory of uninterpreted functions.
+This theory supports basic logical ops, functions (with multiple arity),
+and =, != ops.
+
+The UF theory extends FOL (first order logic) with = interpeted by 4 axioms:
+    1. Reflexivity
+    2. Symmetry
+    3. Transitivity
+    4. Congruence
+
+
+The theory remains sat as long as the linear programming problem composed of
+all the active linear equations has a solution.
+
+The theory's satisfiability state is determined using a congruence graph of the
+assigned equalities and comparing it to the assigned inequalities. The theory
+is UNSAT iff there is an assigned inequality where both of its sides have the
+same representative in the congruence graph.
+
+The congruence graph is also being used to discover theory propagations that
+are being offered to the DPLLT solver.
+"""
+
 from __future__ import annotations
 
 import itertools
@@ -50,7 +76,7 @@ def get_unique_terms(abstract_literals: Iterable[LiteralExpression])\
             _unique_expressions_helper(expressions, right)
 
         else:
-            raise ValueError("Incompatible type of literal {0}".format(abs_lit))
+            raise ValueError(f"Incompatible type of literal {abs_lit}")
     return expressions
 
 
@@ -83,8 +109,8 @@ class CongruenceGraph:
 
     def get_rep(self, node_atom):
         if node_atom not in self.graph:
-            raise ValueError("node with {0} label doesn't exists in the graph".
-                             format(node_atom))
+            raise ValueError(f"node with {node_atom} label doesn't exists"
+                             f" in the graph")
 
         if self.graph.nodes[node_atom]["rep"] == node_atom:
             return node_atom
@@ -109,8 +135,8 @@ class CongruenceGraph:
 
     def apply_equality(self, left, right):
         if left not in self.graph or right not in self.graph:
-            msg = "at least one of the labels {0}, {1} isn't in the graph"
-            raise ValueError(msg.format(left, right))
+            raise ValueError("At least one of the labels {left}, {right} "
+                             "isn't in the graph")
 
         l_rep_parents, r_rep_parents = self._merge_terms_classes(left, right)
 
@@ -145,6 +171,9 @@ class UFTheory(PropositionalTheory):
         self.assignments_log = None
 
     def reset(self):
+        """
+        Resets the theory object
+        """
         self.int_to_literal = None
 
         self.graph = None
@@ -214,6 +243,11 @@ class UFTheory(PropositionalTheory):
         self._check_funcs_args_validity(formula)
 
     def preprocess(self, formula: Atom):
+        """
+        Called by the DPLLT solver to adapt the formula to the theory.
+        :param formula: formula to adapt
+        :return: the adapted formula after preprocess
+        """
         super().preprocess(formula)
         self._check_formula_validity(formula)
         return formula
@@ -236,6 +270,12 @@ class UFTheory(PropositionalTheory):
         self.int_to_literal = dict(zip(ints_vars, literals))
 
     def register_abstraction_map(self, abstraction_map: Dict[int, Atom]):
+        """
+        Registers the abstraction map from int to actual literal object.
+        This helps the theory to interpret the int value assignments
+        :param abstraction_map: a dictionary mapping int to respective atom
+                                literal
+        """
         self._adapt_and_register_map(abstraction_map)
 
         self.graph = CongruenceGraph(self.int_to_literal)
@@ -287,7 +327,7 @@ class UFTheory(PropositionalTheory):
             self.assignment_to_state.pop(part_assignment, None)
         self.assignments_log = self.assignments_log[:remove_from_idx + 1]
 
-    def _get_active_neqs_reps_paris(self):
+    def _get_active_neqs_reps_pairs(self):
         active_neqs_reps_pairs = set()
         for neq in self.active_neqs:
             left_rep = self.graph.get_rep(neq.left)
@@ -299,7 +339,7 @@ class UFTheory(PropositionalTheory):
         return active_neqs_reps_pairs
 
     def _update_t_propagations(self):
-        active_neqs_reps_pairs = self._get_active_neqs_reps_paris()
+        active_neqs_reps_pairs = self._get_active_neqs_reps_pairs()
 
         for int_lit in self.unassigned_ints.intersection(self.eqs_neqs_ints):
             eq_lit = self.int_to_literal[int_lit]
@@ -345,16 +385,20 @@ class UFTheory(PropositionalTheory):
 
         return {-lit_int for lit_int in problem_core}
 
-    def process_assignment(self, assignment_int: int):
-        self.unassigned_ints.discard(abs(assignment_int))
-        self.cur_assignment.append(assignment_int)
+    def process_assignment(self, int_literal: int):
+        """
+        Process assignment of a literal by the theory
+        :param int_literal: an int value representing an atom literal
+        """
+        self.unassigned_ints.discard(abs(int_literal))
+        self.cur_assignment.append(int_literal)
 
-        if assignment_int in self.t_propagations_queue:
-            self.t_propagations_queue.remove(assignment_int)
-        if -assignment_int in self.t_propagations_queue:
-            self.t_propagations_queue.remove(-assignment_int)
+        if int_literal in self.t_propagations_queue:
+            self.t_propagations_queue.remove(int_literal)
+        if -int_literal in self.t_propagations_queue:
+            self.t_propagations_queue.remove(-int_literal)
 
-        abstract_literal = self.int_to_literal[assignment_int]
+        abstract_literal = self.int_to_literal[int_literal]
         if isinstance(abstract_literal, Equal):
             self._process_eq(abstract_literal)
         elif isinstance(abstract_literal, NEqual):
@@ -364,18 +408,28 @@ class UFTheory(PropositionalTheory):
         self.assignments_log.append(cur_assignment)
         self.assignment_to_state[cur_assignment] = self._get_cur_state_copy()
 
-    def conflict_recovery(self, new_assignment: Union[List[int], Set[int]]):
-        if isinstance(new_assignment, set):
-            new_assignment = self.cur_assignment[:len(new_assignment)]
-        state_to_revert = self.assignment_to_state[tuple(new_assignment)]
+    def conflict_recovery(self, assignment: Union[List[int], Set[int]]):
+        """
+        Recovers the theory to the state where its assignment is the given
+        assignment
+        :param assignment: an assignment to recover the state to
+        """
+        if isinstance(assignment, set):
+            assignment = self.cur_assignment[:len(assignment)]
+        state_to_revert = self.assignment_to_state[tuple(assignment)]
 
-        self._restore_properties(state_to_revert, new_assignment)
-        self._remove_states_after(tuple(new_assignment))
+        self._restore_properties(state_to_revert, assignment)
+        self._remove_states_after(tuple(assignment))
 
     def check_t_propagations(self) -> bool:
         return bool(self.t_propagations_queue)
 
     def pop_t_propagation(self) -> Union[int, None]:
+        """
+        Pops theory propagation suggestion if one exists for the current state.
+        :return: int value representing the suggested literal if propagation
+                 exists, None otherwise.
+        """
         if self.t_propagations_queue:
             return self.t_propagations_queue.popleft()
         return None
@@ -391,6 +445,11 @@ class UFTheory(PropositionalTheory):
 
     def analyze_satisfiability(self) ->\
             Tuple[ResultCode, Union[None, Set[int]]]:
+        """
+        Checks if the current situation is contradicts with the theory or not.
+        :return: if contradicts returns (ResultCode.UNSAT, conflict_clause)
+                 else returns (ResultCode.SAT, None)
+        """
         if not self.is_t_conflict():
             return ResultCode.SAT, None
 
@@ -405,4 +464,10 @@ class UFTheory(PropositionalTheory):
             return ResultCode.UNSAT, conflict_core
 
     def to_pre_theory_assignment(self, assignment_map: Dict[Atom, bool]):
+        """
+        Converts the assignment map given into an assignment map which its
+        literals are in their pre theory processing form.
+        :param assignment_map: assignment map (atom -> bool) to convert
+        :return: the converted assignment map
+        """
         return super().to_pre_theory_assignment(assignment_map)
