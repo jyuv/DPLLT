@@ -1,16 +1,34 @@
+"""
+General Notes
+-------------
+Implementation of Tseitin transformation - a method to take an
+arbitrary combinatorial logic circuit and transform it to cnf form where the
+length of the transformed formula is linear in the length of the original.
+
+This is done by adding dummy variables which are called #G<i> where i is the id
+of the dummy var.
+
+For more see
+https://en.wikipedia.org/wiki/Tseytin_transformation
+
+"""
+
 from __future__ import annotations
+
+from typing import List
+
 from parsing.logical_blocks import Var, Equiv, Imply, BinaryOp, \
-    Negate, Or, And
+    Negate, Or, And, Atom
 from bool_transforms.to_cnf import to_cnf
 
 
 class DummyVarsTracker:
-    def __init__(self, init_name="#G"):
+    def __init__(self, init_name: str = "#G"):
         self.next_dummy_id = 0
         self.dummy_map = dict()
         self.init_name = init_name
 
-    def get_dummy(self, f):
+    def get_dummy(self, f: Atom) -> Var:
         if f not in self.dummy_map.keys():
             new_dummy = Var(self.init_name + str(self.next_dummy_id))
             self.next_dummy_id += 1
@@ -18,7 +36,7 @@ class DummyVarsTracker:
         return self.dummy_map[f]
 
 
-def _get_tseitin_equivs(f):
+def _get_tseitin_equivs(f: Atom) -> List[Atom]:
     equivs_conjunction = []
     dummy_tracker = DummyVarsTracker()
     if f.is_literal():
@@ -30,7 +48,8 @@ def _get_tseitin_equivs(f):
     return equivs_conjunction
 
 
-def _tseitin_helper(f, equivs_conjunction, dummy_tracker):
+def _tseitin_helper(f: Atom, equivs_conjunction: List[Atom],
+                    dummy_tracker: DummyVarsTracker) -> None:
     if isinstance(f, BinaryOp):
         is_left_lit, is_right_lit = [item.is_literal() for item in
                                      (f.left, f.right)]
@@ -60,5 +79,5 @@ def _tseitin_helper(f, equivs_conjunction, dummy_tracker):
                                             Negate(f.item)))
 
 
-def tseitin_transform(f):
+def tseitin_transform(f: Atom) -> List[Atom]:
     return [to_cnf(x) for x in _get_tseitin_equivs(f)]

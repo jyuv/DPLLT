@@ -1,6 +1,34 @@
+"""
+General Notes
+-------------
+Parser of a string representation of a formula into a tree composed of
+logical_blocks. The parser first tokenize the string and then uses them
+to parse the formula.
+
+The supported atoms:
+* & - And operator
+* | - Or operator
+* <-> - Equivalence operator
+* -> - Implication operator (right implicates left)
+* ! - Negation operator
+* < - Less operator
+* >= - Greater/Equal operator
+* = - Equality operator
+* != - Inequality
+* Functions - functions that support multiple arity. Ex. f(x), g(x, y)
+* Number - integers (both positive and negatives)
+* Num Array - array of integers (for ex. [1, 2, -3])
+
+The string representation also usually use parenthesis () to make the formula
+unambiguous so the interpretation of the parser will be the only possible one.
+
+"""
+
 from dataclasses import dataclass
 from enum import Enum
 from collections import defaultdict, deque
+from typing import Tuple, Optional
+
 from parsing.logical_blocks import *
 
 
@@ -30,6 +58,7 @@ class TokenType(Enum):
     NUM_ARRAY = 9
 
 
+# Globals for valid types in Unary and Binary operations
 VALID_LEFT_INPUT_TYPES = [TokenType.VAR, TokenType.FUNCTION,
                           TokenType.R_PARENTHESES, TokenType.NUM_ARRAY,
                           TokenType.NUM]
@@ -45,18 +74,29 @@ class Token:
 
 
 class Tokenizer:
-    def __init__(self):
+    """
+    Tokenizes string into a list of tokens to later be processed.
+    The tokens' types are defined as an Enum class above.
+
+    Example
+    ---------
+        tokenizer = Tokenizer()
+        tokenizer.tokenize("(a = b) & (a != c)")
+        tokenizer.reset()
+        tokenizer.tokenize("a -> c")
+    """
+    def __init__(self) -> None:
         self.tokens = []
         self.text, self.len_text = "", 0
         self.cur_i = 0
 
-    def reset(self):
+    def reset(self) -> None:
         self.tokens = []
         self.text = ""
         self.len_text = 0
         self.cur_i = 0
 
-    def _process_var_or_function(self):
+    def _process_var_or_function(self) -> None:
         atom_name = self.text[self.cur_i]
         if (self.cur_i + 1) >= self.len_text:
             self.tokens.append(Token(atom_name, TokenType.VAR))
@@ -77,7 +117,7 @@ class Tokenizer:
                 self.tokens.append(Token(atom_name, TokenType.VAR))
                 break
 
-    def _process_num(self):
+    def _process_num(self) -> None:
         num_str = self.text[self.cur_i]
         if (self.cur_i + 1) >= self.len_text:
             self.tokens.append(Token(num_str, TokenType.NUM))
@@ -97,7 +137,7 @@ class Tokenizer:
                     break
             self.tokens.append(Token(num_str, TokenType.NUM))
 
-    def _process_negations_or_neqs(self):
+    def _process_negations_or_neqs(self) -> None:
         if ((self.cur_i + 1) < self.len_text) and\
                 (self.text[self.cur_i + 1] == '='):
             self.cur_i += 1
@@ -105,7 +145,7 @@ class Tokenizer:
         else:
             self.tokens.append(Token("!", TokenType.UNARY_OP))
 
-    def _process_right_imply_negatives(self):
+    def _process_right_imply_negatives(self) -> None:
         if ((self.cur_i + 1) < self.len_text) and \
                 (self.text[self.cur_i + 1] == '>'):
             self.cur_i += 1
@@ -137,7 +177,7 @@ class Tokenizer:
                         f"{self.text[self.cur_i:self.cur_i + 2]}"
             raise ValueError(error_msg)
 
-    def _process_less_equiv_left_imply(self):
+    def _process_less_equiv_left_imply(self) -> None:
         if ((self.cur_i + 1) < self.len_text) and \
                 (self.text[self.cur_i + 1] == '-'):
             self.cur_i += 1
@@ -157,7 +197,7 @@ class Tokenizer:
         else:
             self.tokens.append(Token("<", TokenType.BINARY_OP))
 
-    def _process_geqs(self):
+    def _process_geqs(self) -> None:
         if ((self.cur_i + 1) < self.len_text) and \
                 (self.text[self.cur_i + 1] == '='):
             self.cur_i += 1
@@ -169,13 +209,17 @@ class Tokenizer:
 
             raise ValueError(error_msg)
 
-    def _process_num_array(self):
+    def _process_num_array(self) -> None:
         end_id = self.text.find("]", self.cur_i)
         token_content = self.text[self.cur_i:end_id + 1]
         self.tokens.append(Token(token_content, TokenType.NUM_ARRAY))
         self.cur_i += len(token_content) - 1
 
-    def tokenize(self, raw_text: str):
+    def tokenize(self, raw_text: str) -> None:
+        """
+        Tokenizes raw_text into tokens saved in self.tokens
+        :param raw_text: string to be tokenized
+        """
         self.reset()
         self.text = raw_text.replace(" ", "")
         self.len_text = len(self.text)
@@ -223,20 +267,32 @@ class Tokenizer:
 
 
 class Parser:
+    """
+    Parsing a string into a logical formula composed of logical blocks.
+    See more on general notes and the supplied tests.
+    The parser conducts a series of general validity checks:
+        Are the parentheses balanced?
+        Are the delimiters in the right place and not adding an empty element?
+        Are the operations given valid inputs?
+        Are there no parentheses empty and is the formula unambiguous?
+        Are all arrays not empty and is all their elements are numbers?
+    """
     def __init__(self):
-
         self.tokenizer = Tokenizer()
         self.p_map = dict()
         self.levels_map = dict()
 
-    def _check_formula_validity(self):
+    def _check_formula_validity(self) -> None:
         self._check_parentheses_balance()
         self._check_delimiter_validity()
         self._check_parentheses_validity()
         self._check_ops_inputs_validity()
         self._check_arrays_validity()
 
-    def _check_parentheses_balance(self):
+    def _check_parentheses_balance(self) -> None:
+        """
+        Are the parentheses balanced?
+        """
         parentheses_text = "".join([x.text for x in self.tokenizer.tokens if
                                     x.text in '()'])
 
@@ -250,7 +306,10 @@ class Parser:
         if queue:
             raise ValueError("Parentheses aren't balanced")
 
-    def _check_parentheses_validity(self):  # checks if > 1 op or is empty
+    def _check_parentheses_validity(self) -> None:
+        """
+        Are there no parentheses empty and is the formula unambiguous?
+        """
         is_already_unary_op_queue, is_already_unary_op = [], False
         is_already_binary_op_queue, is_already_binary_op = [], False
         many_ops_error_msg = "> 1 op in a single parentheses makes term vague"
@@ -291,7 +350,10 @@ class Parser:
 
             prev_token_type = cur_type
 
-    def _check_delimiter_validity(self):
+    def _check_delimiter_validity(self) -> None:
+        """
+        Are the delimiters in the right place and not adding an empty element?
+        """
         functions_ctxs_depth = 0
         cur_inner_function_level = 0
         inner_functions_levels = deque()
@@ -317,7 +379,10 @@ class Parser:
                     error_msg = f"Invalid delimiter location in: {i}"
                     raise ValueError(error_msg)
 
-    def _check_ops_inputs_validity(self):
+    def _check_ops_inputs_validity(self) -> None:
+        """
+        Are the operations given valid inputs?
+        """
         tokens = self.tokenizer.tokens
         num_tokens = len(tokens)
 
@@ -350,7 +415,10 @@ class Parser:
                                 f" operation {token.text}"
                     raise ValueError(error_msg)
 
-    def _check_arrays_validity(self):
+    def _check_arrays_validity(self) -> None:
+        """
+        Are all arrays not empty and is all their elements are numbers?
+        """
         def is_number(text):
             if text.isdecimal():
                 return True
@@ -391,7 +459,7 @@ class Parser:
                 for k in keys}
 
     def _get_parentheses_map(self):
-        # map item structure: [id in tokens list, is_function's, partner_id]
+        # map item val structure: [id in tokens list, is_function's, partner_id]
         parentheses_map = dict()
         p_stack = []
 
@@ -450,7 +518,7 @@ class Parser:
         for arg in args:
             arg_rbound = arg_lbound + len(arg) - 1
             arg_bounds = (arg_lbound, arg_rbound)
-            args_atoms.append(self._helper(function_level + 1, arg_bounds))
+            args_atoms.append(self._parse_rec(function_level + 1, arg_bounds))
             arg_lbound = arg_rbound + 2
 
         function_name = function_root.text
@@ -466,22 +534,31 @@ class Parser:
                     return token_loc
         return None
 
-    def _process_right_item(self, loc, level, parent_bounds):
-        next_token = self.tokenizer.tokens[loc]
+    def _process_right_item(self, op_loc: int, level: int,
+                            bounds: Tuple[int, int]) -> Atom:
+        """
+        Processes item to the right of an operation
+        :param op_loc: index of the operation in the tokens list
+        :param level: parenthesis level of the item & operation
+        :param bounds: bounds (left index, right index) of relevant range
+        of tokens for right item processing
+        :return: The processed right item
+        """
+        next_token = self.tokenizer.tokens[op_loc]
 
         if next_token.token_type == TokenType.VAR:
             right_item = Var(next_token.text)
 
         elif next_token.token_type == TokenType.FUNCTION:
-            right_item = self._process_function(loc, level)
+            right_item = self._process_function(op_loc, level)
 
         elif next_token.token_type == TokenType.L_PARENTHESES:
-            new_bounds = (loc + 1, self.p_map[loc][2])
-            right_item = self._helper(level + 1, new_bounds)
+            new_bounds = (op_loc + 1, self.p_map[op_loc][2])
+            right_item = self._parse_rec(level + 1, new_bounds)
 
         elif next_token.token_type == TokenType.UNARY_OP:
-            new_bounds = (loc + 1, parent_bounds[1])
-            inner_inner_item = self._helper(level, new_bounds)
+            new_bounds = (op_loc + 1, bounds[1])
+            inner_inner_item = self._parse_rec(level, new_bounds)
             right_item = BLOCKS_MAP[next_token.text](inner_inner_item)
 
         elif next_token.token_type == TokenType.NUM_ARRAY:
@@ -498,21 +575,27 @@ class Parser:
 
         return right_item
 
-    def _process_left_item(self, loc, level):
-        prev_token = self.tokenizer.tokens[loc]
+    def _process_left_item(self, op_loc: int, level: int) -> Atom:
+        """
+        Processes item to the left of an operation
+        :param op_loc: index of the operation in the tokens list
+        :param level: parenthesis level of the item & operation
+        :return: The processed right item
+        """
+        prev_token = self.tokenizer.tokens[op_loc]
 
         if prev_token.token_type == TokenType.VAR:
             left_item = Var(prev_token.text)
 
         elif prev_token.token_type == TokenType.R_PARENTHESES:
-            if self.p_map[loc][1]:
+            if self.p_map[op_loc][1]:
                 # function processing
-                function_root_loc = self.p_map[loc][2] - 1
+                function_root_loc = self.p_map[op_loc][2] - 1
                 left_item = self._process_function(function_root_loc, level)
             else:
                 # process regular ()
-                new_bounds = (self.p_map[loc][2] + 1, loc)
-                left_item = self._helper(level + 1, new_bounds)
+                new_bounds = (self.p_map[op_loc][2] + 1, op_loc)
+                left_item = self._parse_rec(level + 1, new_bounds)
 
         elif prev_token.token_type == TokenType.NUM_ARRAY:
             left_item = np.array([int(x) for x in
@@ -526,7 +609,16 @@ class Parser:
 
         return left_item
 
-    def _process_op(self, op_loc, op_level, cur_bounds):
+    def _process_op(self, op_loc: int, op_level: int,
+                    cur_bounds: Tuple[int, int]) -> Atom:
+        """
+        Processing operation located in the tokens list in op_loc index
+        :param op_loc:  index of the operation in the tokens list
+        :param op_level: parenthesis level of the operation
+        :param cur_bounds: bounds (left index, right index) of relevant range
+        of tokens for the operation processing
+        :return: The processed operation
+        """
         op_token = self.tokenizer.tokens[op_loc]
         if op_token.token_type == TokenType.UNARY_OP:
             inner_item = self._process_right_item(op_loc + 1, op_level,
@@ -543,7 +635,15 @@ class Parser:
 
             return BLOCKS_MAP[op_token.text](left_item, right_item)
 
-    def _helper(self, cur_level, bounds):
+    def _parse_rec(self, cur_level: int, bounds: Tuple[int, int]) -> Atom:
+        """
+        Helper recursive function for parsing the sub-token range of bounds
+        in the level cur_level
+        :param cur_level: parenthesis level of the sub-token range
+        :param bounds: bounds (left index, right index) of relevant range
+        of tokens for the operation processing
+        :return: The parsed logical formula represented in the sub-tokens range
+        """
         chosen_op_loc = self._get_next_token_loc(cur_level, bounds, kind="ops")
 
         if chosen_op_loc is not None:
@@ -559,9 +659,14 @@ class Parser:
                 else:
                     return Var(cur_token.text)
             else:
-                return self._helper(cur_level + 1, bounds)
+                return self._parse_rec(cur_level + 1, bounds)
 
-    def parse(self, raw_text: str):
+    def parse(self, raw_text: str) -> Optional[Atom]:
+        """
+        Parses string into a logical formula represented by logical blocks
+        :param raw_text: string to be parsed
+        :return: The parsed formula represented by logical blocks
+        """
         self.tokenizer.tokenize(raw_text)
 
         self._check_formula_validity()
@@ -574,4 +679,4 @@ class Parser:
         cur_level = 0
         bounds = (0, len(self.tokenizer.tokens) - 1)
 
-        return self._helper(cur_level, bounds)
+        return self._parse_rec(cur_level, bounds)

@@ -1,3 +1,12 @@
+"""
+General Notes
+-------------
+Helper methods to convert a logical formula into a cnf form.
+This is done by using an nnf transformation which is also provided as public
+method.
+
+"""
+
 from parsing.logical_blocks import Atom, Equiv, Imply, BinaryOp, UnaryOp,\
     Negate, Or, Equal, NEqual, Less, Geq
 
