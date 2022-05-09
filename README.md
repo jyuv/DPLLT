@@ -23,7 +23,7 @@ For example: (x -> y) | (!x)
 translates to
 <br>
 <p align=center>
-<img src="https://github.com/jyuv/DPLLT/blob/main/assets/bool_tree_graph.png?raw=true">
+<img src="https://github.com/jyuv/DPLLT/blob/main/assets/logical_tree.png?raw=true">
 </p>
 <br>
 The parser converts strings like the one above to a tree of logical blocks
