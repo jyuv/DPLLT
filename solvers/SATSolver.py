@@ -3,7 +3,7 @@ General Notes
 -------------
 This module is an implementation of a modern SAT solver.
 This module implement only the building block methods/actions of the solver.
-The "solution strategy is implemented in a more general solver DPLLT, which
+The "solution strategy" is implemented in a more general solver DPLLT, which
 allows to integrate a theory to the conditions the solver must take into
 account. The SAT solver can run without a theory using the DPLL facade of DPLLT.
 
