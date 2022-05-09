@@ -15,6 +15,7 @@ class Atom(ABC):
     """
     Abstract basic unit of logical formula
     """
+
     @abstractmethod
     def is_literal(self) -> bool:
         pass
@@ -46,6 +47,7 @@ class DualSideLiteral(Atom, ABC):
     """
     Abstract object of literals built of two elements - left and right
     """
+
     def __init__(self, left, right, symbol: str):
         self.left = left
         self.right = right
@@ -53,7 +55,7 @@ class DualSideLiteral(Atom, ABC):
 
     def __str__(self) -> str:
         if isinstance(self.left, np.ndarray):
-            left_side = repr(self.left)[6: -1]
+            left_side = repr(self.left)[6:-1]
         else:
             left_side = str(self.left)
 
@@ -61,7 +63,7 @@ class DualSideLiteral(Atom, ABC):
             left_side = f"({left_side})"
 
         if isinstance(self.right, np.ndarray):
-            right_side = repr(self.right)[6: -1]
+            right_side = repr(self.right)[6:-1]
         else:
             right_side = str(self.right)
 
@@ -83,8 +85,7 @@ class DualSideLiteral(Atom, ABC):
             if isinstance(is_same_right, np.ndarray):
                 is_same_right = all(is_same_right)
 
-            return all((is_same_left, is_same_right,
-                        self.symbol == other.symbol))
+            return all((is_same_left, is_same_right, self.symbol == other.symbol))
         return False
 
     def is_literal(self) -> bool:
@@ -99,6 +100,7 @@ class Var(Atom):
     """
     Variable literal
     """
+
     def __init__(self, name: str, bool_val: Union[str, None] = None):
         self.name = name
         self.bool_val = bool_val
@@ -120,8 +122,7 @@ class Var(Atom):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Var):
-            return (self.name == other.name) and\
-                   (self.bool_val == other.bool_val)
+            return (self.name == other.name) and (self.bool_val == other.bool_val)
         return False
 
     def __hash__(self) -> int:
@@ -132,8 +133,10 @@ class Func(Atom):
     """
     Function literal
     """
-    def __init__(self, name: str,
-                 args: Union[Func, Var, Iterable[Union[Func, Var, Negate]]]):
+
+    def __init__(
+        self, name: str, args: Union[Func, Var, Iterable[Union[Func, Var, Negate]]]
+    ):
         self.name = name
 
         if isinstance(args, Iterable):
@@ -142,14 +145,15 @@ class Func(Atom):
             self.args = [args]
 
     def __str__(self) -> str:
-        args_str = ', '.join([str(arg) for arg in self.args])
+        args_str = ", ".join([str(arg) for arg in self.args])
         return f"{self.name}({args_str})"
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Func) and self.name == other.name:
             is_equal_n_args = len(self.args) == len(other.args)
-            return is_equal_n_args and (all(self.args[i] == other.args[i]
-                                            for i in range(len(self.args))))
+            return is_equal_n_args and (
+                all(self.args[i] == other.args[i] for i in range(len(self.args)))
+            )
         return False
 
     def __hash__(self) -> int:
@@ -166,6 +170,7 @@ class Equal(DualSideLiteral):
     """
     Equality literal
     """
+
     def __init__(self, left, right):
         super(Equal, self).__init__(left, right, symbol="=")
 
@@ -177,6 +182,7 @@ class NEqual(DualSideLiteral):
     """
     Inequality (!=) literal
     """
+
     def __init__(self, left, right):
         super(NEqual, self).__init__(left, right, symbol="!=")
 
@@ -188,6 +194,7 @@ class Geq(DualSideLiteral):
     """
     Greater or Equal (>=) literal
     """
+
     def __init__(self, left, right):
         super(Geq, self).__init__(left, right, symbol=">=")
 
@@ -199,6 +206,7 @@ class Less(DualSideLiteral):
     """
     Less literal
     """
+
     def __init__(self, left, right):
         super(Less, self).__init__(left, right, symbol="<")
 
@@ -210,6 +218,7 @@ class LogicalOp(Atom, ABC):
     """
     Abstract object representing logical operations
     """
+
     pass
 
 
@@ -218,6 +227,7 @@ class ComplexLogicalOp(LogicalOp, ABC):
     Abstract object representing logical operations which aren't basic
     (basic operations are: Or, And, Negate).
     """
+
     @abstractmethod
     def to_basic(self) -> Atom:
         """
@@ -242,7 +252,7 @@ class UnaryOp(LogicalOp, ABC):
         return False
 
     def __hash__(self) -> int:
-        return hash((self.item, ))
+        return hash((self.item,))
 
     def __str__(self) -> str:
         if isinstance(self.item, TYPES_REQUIRE_SEPARATION_RIGHT):
@@ -257,6 +267,7 @@ class Negate(UnaryOp):
     """
     Negation operator
     """
+
     def __init__(self, item: Atom):
         super().__init__(item, symbol="!")
 
@@ -302,6 +313,7 @@ class And(BinaryOp):
     """
     And operator
     """
+
     def __init__(self, left_item: Atom, right_item: Atom):
         super(And, self).__init__(left_item, right_item, symbol="&")
 
@@ -313,6 +325,7 @@ class Or(BinaryOp):
     """
     Or operator
     """
+
     def __init__(self, left_item: Atom, right_item: Atom):
         super(Or, self).__init__(left_item, right_item, symbol="|")
 
@@ -328,10 +341,16 @@ class Or(BinaryOp):
         :return: The distributed version of the formula
         """
         if (isinstance(self.left, And)) and (isinstance(self.right, And)):
-            return And(Or(self.left.left, self.right.left),
-                       And(Or(self.left.left, self.right.right),
-                           And(Or(self.left.right, self.right.left),
-                               Or(self.left.right, self.right.right))))
+            return And(
+                Or(self.left.left, self.right.left),
+                And(
+                    Or(self.left.left, self.right.right),
+                    And(
+                        Or(self.left.right, self.right.left),
+                        Or(self.left.right, self.right.right),
+                    ),
+                ),
+            )
         elif isinstance(self.left, And):
             inner_left, inner_right = self.left.left, self.left.right
             return And(Or(inner_left, self.right), Or(inner_right, self.right))
@@ -348,6 +367,7 @@ class Imply(BinaryOp, ComplexLogicalOp):
     """
     Imply operator (left -> right)
     """
+
     def __init__(self, left_item: Atom, right_item: Atom):
         BinaryOp.__init__(self, left_item, right_item, symbol="->")
 
@@ -364,6 +384,7 @@ class Equiv(BinaryOp):
     """
     Equivalence operator
     """
+
     def __init__(self, left_item, right_item):
         super(Equiv, self).__init__(left_item, right_item, symbol="<->")
 
@@ -373,8 +394,7 @@ class Equiv(BinaryOp):
         This is very useful for converting formulas to CNF form
         :return: The basic form of the formula
         """
-        return And(Or(Negate(self.left), self.right), Or(Negate(self.right),
-                                                         self.left))
+        return And(Or(Negate(self.left), self.right), Or(Negate(self.right), self.left))
 
     def negate(self) -> Atom:
         return self.to_basic().negate()

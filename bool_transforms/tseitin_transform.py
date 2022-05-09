@@ -17,8 +17,7 @@ from __future__ import annotations
 
 from typing import List
 
-from parsing.logical_blocks import Var, Equiv, Imply, BinaryOp, \
-    Negate, Or, And, Atom
+from parsing.logical_blocks import Var, Equiv, Imply, BinaryOp, Negate, Or, And, Atom
 from bool_transforms.to_cnf import to_cnf
 
 
@@ -48,18 +47,18 @@ def _get_tseitin_equivs(f: Atom) -> List[Atom]:
     return equivs_conjunction
 
 
-def _tseitin_helper(f: Atom, equivs_conjunction: List[Atom],
-                    dummy_tracker: DummyVarsTracker) -> None:
+def _tseitin_helper(
+    f: Atom, equivs_conjunction: List[Atom], dummy_tracker: DummyVarsTracker
+) -> None:
     if isinstance(f, BinaryOp):
-        is_left_lit, is_right_lit = [item.is_literal() for item in
-                                     (f.left, f.right)]
+        is_left_lit, is_right_lit = [item.is_literal() for item in (f.left, f.right)]
         left_rep = f.left if is_left_lit else dummy_tracker.get_dummy(f.left)
-        right_rep = f.right if is_right_lit else \
-            dummy_tracker.get_dummy(f.right)
+        right_rep = f.right if is_right_lit else dummy_tracker.get_dummy(f.right)
 
         if isinstance(f, (And, Or, Equiv, Imply)):
-            equivs_conjunction.append(Equiv(dummy_tracker.get_dummy(f),
-                                            type(f)(left_rep, right_rep)))
+            equivs_conjunction.append(
+                Equiv(dummy_tracker.get_dummy(f), type(f)(left_rep, right_rep))
+            )
         else:
             raise ValueError("Unrecognized type of f: {0}".format(type(f)))
 
@@ -71,12 +70,12 @@ def _tseitin_helper(f: Atom, equivs_conjunction: List[Atom],
     elif isinstance(f, Negate):
         if not f.item.is_literal():
             dummy_var = dummy_tracker.get_dummy(f.item)
-            equivs_conjunction.append(Equiv(dummy_tracker.get_dummy(f),
-                                            Negate(dummy_var)))
+            equivs_conjunction.append(
+                Equiv(dummy_tracker.get_dummy(f), Negate(dummy_var))
+            )
             _tseitin_helper(f.item, equivs_conjunction, dummy_tracker)
         else:
-            equivs_conjunction.append(Equiv(dummy_tracker.get_dummy(f),
-                                            Negate(f.item)))
+            equivs_conjunction.append(Equiv(dummy_tracker.get_dummy(f), Negate(f.item)))
 
 
 def tseitin_transform(f: Atom) -> List[Atom]:

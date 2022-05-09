@@ -9,15 +9,25 @@ types. This theory also serves as a interface for other theories APIs.
 from abc import abstractmethod
 from typing import Union, Set, Tuple, Dict
 from constants import ResultCode
-from parsing.logical_blocks import UnaryOp, BinaryOp, Atom, Var, And, Or,\
-    Imply, Equiv, Negate
+from parsing.logical_blocks import (
+    UnaryOp,
+    BinaryOp,
+    Atom,
+    Var,
+    And,
+    Or,
+    Imply,
+    Equiv,
+    Negate,
+)
 
 PROPOSITIONAL_SUPPORTED_TYPES = (Var, And, Or, Imply, Equiv, Negate)
 
 
 class PropositionalTheory:
-    def __init__(self, allowed_atoms_types: Tuple[type, ...] =
-                 PROPOSITIONAL_SUPPORTED_TYPES):
+    def __init__(
+        self, allowed_atoms_types: Tuple[type, ...] = PROPOSITIONAL_SUPPORTED_TYPES
+    ):
         self.allowed_atoms_types = allowed_atoms_types
 
     @abstractmethod
@@ -40,8 +50,7 @@ class PropositionalTheory:
             self._check_atom_types_validity(formula.item)
 
     @abstractmethod
-    def register_abstraction_map(self, abstraction_map: Dict[int, Atom]) ->\
-            None:
+    def register_abstraction_map(self, abstraction_map: Dict[int, Atom]) -> None:
         """
         Registers the abstraction map from int to actual literal object.
         This helps the theory to interpret the int value assignments
@@ -93,8 +102,9 @@ class PropositionalTheory:
         pass
 
     @abstractmethod
-    def to_pre_theory_assignment(self, assignment_map: Dict[Atom, bool]) -> \
-            Dict[Atom, bool]:
+    def to_pre_theory_assignment(
+        self, assignment_map: Dict[Atom, bool]
+    ) -> Dict[Atom, bool]:
         """
         Converts the assignment map given into an assignment map which its
         literals are in their pre theory processing form.

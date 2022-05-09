@@ -42,7 +42,7 @@ BLOCKS_MAP = {
     "<": Less,
     ">=": Geq,
     "=": Equal,
-    "!=": NEqual
+    "!=": NEqual,
 }
 
 
@@ -59,12 +59,21 @@ class TokenType(Enum):
 
 
 # Globals for valid types in Unary and Binary operations
-VALID_LEFT_INPUT_TYPES = [TokenType.VAR, TokenType.FUNCTION,
-                          TokenType.R_PARENTHESES, TokenType.NUM_ARRAY,
-                          TokenType.NUM]
-VALID_RIGHT_INPUT_TYPES = [TokenType.VAR, TokenType.FUNCTION,
-                           TokenType.L_PARENTHESES, TokenType.UNARY_OP,
-                           TokenType.NUM_ARRAY, TokenType.NUM]
+VALID_LEFT_INPUT_TYPES = [
+    TokenType.VAR,
+    TokenType.FUNCTION,
+    TokenType.R_PARENTHESES,
+    TokenType.NUM_ARRAY,
+    TokenType.NUM,
+]
+VALID_RIGHT_INPUT_TYPES = [
+    TokenType.VAR,
+    TokenType.FUNCTION,
+    TokenType.L_PARENTHESES,
+    TokenType.UNARY_OP,
+    TokenType.NUM_ARRAY,
+    TokenType.NUM,
+]
 
 
 @dataclass
@@ -85,6 +94,7 @@ class Tokenizer:
         tokenizer.reset()
         tokenizer.tokenize("a -> c")
     """
+
     def __init__(self) -> None:
         self.tokens = []
         self.text, self.len_text = "", 0
@@ -129,8 +139,10 @@ class Tokenizer:
                     self.cur_i += 1
 
                 elif self.text[self.cur_i + 1].isalpha():
-                    error_msg = f"Invalid num followed by a letter:" \
-                                f" {num_str + self.text[self.cur_i]} "
+                    error_msg = (
+                        f"Invalid num followed by a letter:"
+                        f" {num_str + self.text[self.cur_i]} "
+                    )
                     raise ValueError(error_msg)
 
                 else:
@@ -138,21 +150,20 @@ class Tokenizer:
             self.tokens.append(Token(num_str, TokenType.NUM))
 
     def _process_negations_or_neqs(self) -> None:
-        if ((self.cur_i + 1) < self.len_text) and\
-                (self.text[self.cur_i + 1] == '='):
+        if ((self.cur_i + 1) < self.len_text) and (self.text[self.cur_i + 1] == "="):
             self.cur_i += 1
             self.tokens.append(Token("!=", TokenType.BINARY_OP))
         else:
             self.tokens.append(Token("!", TokenType.UNARY_OP))
 
     def _process_right_imply_negatives(self) -> None:
-        if ((self.cur_i + 1) < self.len_text) and \
-                (self.text[self.cur_i + 1] == '>'):
+        if ((self.cur_i + 1) < self.len_text) and (self.text[self.cur_i + 1] == ">"):
             self.cur_i += 1
             self.tokens.append(Token("->", TokenType.BINARY_OP))
 
-        elif ((self.cur_i + 1) < self.len_text) and \
-                (self.text[self.cur_i + 1].isdecimal()):
+        elif ((self.cur_i + 1) < self.len_text) and (
+            self.text[self.cur_i + 1].isdecimal()
+        ):
             num_str = self.text[self.cur_i] + self.text[self.cur_i + 1]
             self.cur_i += 1
 
@@ -165,29 +176,34 @@ class Tokenizer:
                     self.cur_i += 1
 
                 elif self.text[self.cur_i + 1].isalpha():
-                    error_msg = f"Invalid num followed by a letter:" \
-                                f" {num_str + self.text[self.cur_i]} "
+                    error_msg = (
+                        f"Invalid num followed by a letter:"
+                        f" {num_str + self.text[self.cur_i]} "
+                    )
                     raise ValueError(error_msg)
 
                 else:
                     self.tokens.append(Token(num_str, TokenType.NUM))
                     break
         else:
-            error_msg = f"Illegal combination of chars: " \
-                        f"{self.text[self.cur_i:self.cur_i + 2]}"
+            error_msg = (
+                f"Illegal combination of chars: "
+                f"{self.text[self.cur_i:self.cur_i + 2]}"
+            )
             raise ValueError(error_msg)
 
     def _process_less_equiv_left_imply(self) -> None:
-        if ((self.cur_i + 1) < self.len_text) and \
-                (self.text[self.cur_i + 1] == '-'):
+        if ((self.cur_i + 1) < self.len_text) and (self.text[self.cur_i + 1] == "-"):
             self.cur_i += 1
 
-            if ((self.cur_i + 1) < self.len_text) and \
-                    (self.text[self.cur_i + 1].isdecimal()):
+            if ((self.cur_i + 1) < self.len_text) and (
+                self.text[self.cur_i + 1].isdecimal()
+            ):
                 self.tokens.append(Token("<", TokenType.BINARY_OP))
 
-            elif ((self.cur_i + 1) < self.len_text) and \
-                    (self.text[self.cur_i + 1] == '>'):
+            elif ((self.cur_i + 1) < self.len_text) and (
+                self.text[self.cur_i + 1] == ">"
+            ):
                 self.cur_i += 1
                 self.tokens.append(Token("<->", TokenType.BINARY_OP))
 
@@ -198,20 +214,21 @@ class Tokenizer:
             self.tokens.append(Token("<", TokenType.BINARY_OP))
 
     def _process_geqs(self) -> None:
-        if ((self.cur_i + 1) < self.len_text) and \
-                (self.text[self.cur_i + 1] == '='):
+        if ((self.cur_i + 1) < self.len_text) and (self.text[self.cur_i + 1] == "="):
             self.cur_i += 1
             self.tokens.append(Token(">=", TokenType.BINARY_OP))
 
         else:
-            error_msg = f"Illegal combination of chars: " \
-                        f"{self.text[self.cur_i:self.cur_i + 2]}"
+            error_msg = (
+                f"Illegal combination of chars: "
+                f"{self.text[self.cur_i:self.cur_i + 2]}"
+            )
 
             raise ValueError(error_msg)
 
     def _process_num_array(self) -> None:
         end_id = self.text.find("]", self.cur_i)
-        token_content = self.text[self.cur_i:end_id + 1]
+        token_content = self.text[self.cur_i : end_id + 1]
         self.tokens.append(Token(token_content, TokenType.NUM_ARRAY))
         self.cur_i += len(token_content) - 1
 
@@ -233,25 +250,25 @@ class Tokenizer:
             elif cur_char.isdecimal():
                 self._process_num()
 
-            elif cur_char == '(':
+            elif cur_char == "(":
                 self.tokens.append(Token("(", TokenType.L_PARENTHESES))
 
-            elif cur_char == ')':
+            elif cur_char == ")":
                 self.tokens.append(Token(")", TokenType.R_PARENTHESES))
 
-            elif cur_char in ['&', '|', '=']:
+            elif cur_char in ["&", "|", "="]:
                 self.tokens.append(Token(cur_char, TokenType.BINARY_OP))
 
-            elif cur_char == '!':
+            elif cur_char == "!":
                 self._process_negations_or_neqs()
 
-            elif cur_char == '<':
+            elif cur_char == "<":
                 self._process_less_equiv_left_imply()
 
-            elif cur_char == '>':
+            elif cur_char == ">":
                 self._process_geqs()
 
-            elif cur_char == '-':
+            elif cur_char == "-":
                 self._process_right_imply_negatives()
 
             elif cur_char == ",":
@@ -277,6 +294,7 @@ class Parser:
         Are there no parentheses empty and is the formula unambiguous?
         Are all arrays not empty and is all their elements are numbers?
     """
+
     def __init__(self):
         self.tokenizer = Tokenizer()
         self.p_map = dict()
@@ -293,13 +311,14 @@ class Parser:
         """
         Are the parentheses balanced?
         """
-        parentheses_text = "".join([x.text for x in self.tokenizer.tokens if
-                                    x.text in '()'])
+        parentheses_text = "".join(
+            [x.text for x in self.tokenizer.tokens if x.text in "()"]
+        )
 
         queue = []
         for p in parentheses_text:
-            if p == '(':
-                queue.append(')')
+            if p == "(":
+                queue.append(")")
             else:
                 if not queue or p != queue.pop():
                     raise ValueError("Parentheses aren't balanced")
@@ -363,12 +382,14 @@ class Parser:
                 functions_ctxs_depth += 1
                 cur_inner_function_level = 0
 
-            elif token.token_type == TokenType.L_PARENTHESES and\
-                    functions_ctxs_depth > 0:
+            elif (
+                token.token_type == TokenType.L_PARENTHESES and functions_ctxs_depth > 0
+            ):
                 cur_inner_function_level += 1
 
-            elif token.token_type == TokenType.R_PARENTHESES and \
-                    functions_ctxs_depth > 0:
+            elif (
+                token.token_type == TokenType.R_PARENTHESES and functions_ctxs_depth > 0
+            ):
                 cur_inner_function_level -= 1
                 if cur_inner_function_level == 0:
                     functions_ctxs_depth -= 1
@@ -389,36 +410,42 @@ class Parser:
         for i, token in enumerate(tokens):
             if token.token_type == TokenType.UNARY_OP:
                 if (i + 1) >= num_tokens:
-                    error_msg = f"Unary Operation {token.text} at the end" \
-                                f" of formula text with no item to act on"
+                    error_msg = (
+                        f"Unary Operation {token.text} at the end"
+                        f" of formula text with no item to act on"
+                    )
                     raise ValueError(error_msg)
 
                 elif tokens[i + 1].token_type not in VALID_RIGHT_INPUT_TYPES:
-                    error_msg = f"Invalid argument to unary" \
-                                f" operation {token.text}"
+                    error_msg = f"Invalid argument to unary" f" operation {token.text}"
                     raise ValueError(error_msg)
 
             elif token.token_type == TokenType.BINARY_OP:
                 is_on_edge = (i + 1 >= num_tokens) or ((i - 1) < 0)
                 if is_on_edge:
-                    error_msg = f"Binary Operation {token.text} don't have" \
-                                f" an argument to his left or right "
+                    error_msg = (
+                        f"Binary Operation {token.text} don't have"
+                        f" an argument to his left or right "
+                    )
                     raise ValueError(error_msg)
 
                 elif tokens[i - 1].token_type not in VALID_LEFT_INPUT_TYPES:
-                    error_msg = f"Invalid left argument to binary" \
-                                f" operation {token.text}"
+                    error_msg = (
+                        f"Invalid left argument to binary" f" operation {token.text}"
+                    )
                     raise ValueError(error_msg)
 
                 elif tokens[i + 1].token_type not in VALID_RIGHT_INPUT_TYPES:
-                    error_msg = f"Invalid right argument to binary" \
-                                f" operation {token.text}"
+                    error_msg = (
+                        f"Invalid right argument to binary" f" operation {token.text}"
+                    )
                     raise ValueError(error_msg)
 
     def _check_arrays_validity(self) -> None:
         """
         Are all arrays not empty and is all their elements are numbers?
         """
+
         def is_number(text):
             if text.isdecimal():
                 return True
@@ -435,8 +462,9 @@ class Parser:
 
                 for c_item in content_items:
                     if not is_number(c_item):
-                        error_msg = f"{c_item} isn't a number in" \
-                                    f" array [{content_items}]"
+                        error_msg = (
+                            f"{c_item} isn't a number in" f" array [{content_items}]"
+                        )
                         raise ValueError(error_msg)
 
     def _get_levels_map(self):
@@ -452,11 +480,11 @@ class Parser:
                 levels_ops_map[cur_level].append(i)
             else:
                 levels_elements_map[cur_level].append(i)
-        keys = set(list(levels_ops_map.keys()) +
-                   list(levels_elements_map.keys()))
-        return {k: {"ops": levels_ops_map[k],
-                    "elements": levels_elements_map[k]}
-                for k in keys}
+        keys = set(list(levels_ops_map.keys()) + list(levels_elements_map.keys()))
+        return {
+            k: {"ops": levels_ops_map[k], "elements": levels_elements_map[k]}
+            for k in keys
+        }
 
     def _get_parentheses_map(self):
         # map item val structure: [id in tokens list, is_function's, partner_id]
@@ -465,17 +493,19 @@ class Parser:
 
         for i, token in enumerate(self.tokenizer.tokens):
             if token.token_type == TokenType.L_PARENTHESES:
-                is_function_p = (i > 0) and\
-                                self.tokenizer.tokens[i - 1].token_type ==\
-                                TokenType.FUNCTION
-                parentheses_map[i] = [TokenType.L_PARENTHESES, is_function_p,
-                                      None]
+                is_function_p = (i > 0) and self.tokenizer.tokens[
+                    i - 1
+                ].token_type == TokenType.FUNCTION
+                parentheses_map[i] = [TokenType.L_PARENTHESES, is_function_p, None]
                 p_stack.append(i)
             elif token.token_type == TokenType.R_PARENTHESES:
                 partner_id = p_stack[-1]
                 is_function_p = parentheses_map[partner_id][1]
-                parentheses_map[i] = [TokenType.R_PARENTHESES, is_function_p,
-                                      partner_id]
+                parentheses_map[i] = [
+                    TokenType.R_PARENTHESES,
+                    is_function_p,
+                    partner_id,
+                ]
                 parentheses_map[partner_id][2] = i
                 p_stack.pop()
 
@@ -488,8 +518,8 @@ class Parser:
             cur_token = self.tokenizer.tokens[i]
 
             if cur_token.token_type == TokenType.FUNCTION:
-                right_parenthesis_id = self.p_map[i+1][2]
-                func_tokens = self.tokenizer.tokens[i: right_parenthesis_id + 1]
+                right_parenthesis_id = self.p_map[i + 1][2]
+                func_tokens = self.tokenizer.tokens[i : right_parenthesis_id + 1]
                 cur_arg.extend(func_tokens)
                 i += right_parenthesis_id - i
 
@@ -534,8 +564,9 @@ class Parser:
                     return token_loc
         return None
 
-    def _process_right_item(self, op_loc: int, level: int,
-                            bounds: Tuple[int, int]) -> Atom:
+    def _process_right_item(
+        self, op_loc: int, level: int, bounds: Tuple[int, int]
+    ) -> Atom:
         """
         Processes item to the right of an operation
         :param op_loc: index of the operation in the tokens list
@@ -562,15 +593,16 @@ class Parser:
             right_item = BLOCKS_MAP[next_token.text](inner_inner_item)
 
         elif next_token.token_type == TokenType.NUM_ARRAY:
-            right_item = np.array([int(x) for x in
-                                  next_token.text[1:-1].split(",")])
+            right_item = np.array([int(x) for x in next_token.text[1:-1].split(",")])
 
         elif next_token.token_type == TokenType.NUM:
             right_item = int(next_token.text)
 
         else:
-            error_msg = f"Unexpected token {next_token.text} of type " \
-                        f"{next_token.token_type} to serve as a right argument"
+            error_msg = (
+                f"Unexpected token {next_token.text} of type "
+                f"{next_token.token_type} to serve as a right argument"
+            )
             raise ValueError(error_msg)
 
         return right_item
@@ -598,8 +630,7 @@ class Parser:
                 left_item = self._parse_rec(level + 1, new_bounds)
 
         elif prev_token.token_type == TokenType.NUM_ARRAY:
-            left_item = np.array([int(x) for x in
-                                  prev_token.text[1:-1].split(",")])
+            left_item = np.array([int(x) for x in prev_token.text[1:-1].split(",")])
 
         elif prev_token.token_type == TokenType.NUM:
             left_item = int(prev_token.text)
@@ -609,8 +640,9 @@ class Parser:
 
         return left_item
 
-    def _process_op(self, op_loc: int, op_level: int,
-                    cur_bounds: Tuple[int, int]) -> Atom:
+    def _process_op(
+        self, op_loc: int, op_level: int, cur_bounds: Tuple[int, int]
+    ) -> Atom:
         """
         Processing operation located in the tokens list in op_loc index
         :param op_loc:  index of the operation in the tokens list
@@ -621,13 +653,11 @@ class Parser:
         """
         op_token = self.tokenizer.tokens[op_loc]
         if op_token.token_type == TokenType.UNARY_OP:
-            inner_item = self._process_right_item(op_loc + 1, op_level,
-                                                  cur_bounds)
+            inner_item = self._process_right_item(op_loc + 1, op_level, cur_bounds)
             return BLOCKS_MAP[op_token.text](inner_item)
 
         else:  # Binary op which isn't an inequality
-            right_item = self._process_right_item(op_loc + 1, op_level,
-                                                  cur_bounds)
+            right_item = self._process_right_item(op_loc + 1, op_level, cur_bounds)
             left_item = self._process_left_item(op_loc - 1, op_level)
 
             if op_token.text == "<-":
@@ -650,8 +680,7 @@ class Parser:
             return self._process_op(chosen_op_loc, cur_level, bounds)
 
         else:  # process non-op
-            token_loc = self._get_next_token_loc(cur_level, bounds,
-                                                 kind="elements")
+            token_loc = self._get_next_token_loc(cur_level, bounds, kind="elements")
             if token_loc is not None:
                 cur_token = self.tokenizer.tokens[token_loc]
                 if cur_token.token_type == TokenType.FUNCTION:

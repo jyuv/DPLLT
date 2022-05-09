@@ -21,13 +21,24 @@ from __future__ import annotations
 
 from typing import Optional, List, Set, Union, Dict, Tuple
 
-from parsing.logical_blocks import Var, Func, Less, Geq, NEqual, Equal, \
-    BinaryOp, UnaryOp, Atom
+from parsing.logical_blocks import (
+    Var,
+    Func,
+    Less,
+    Geq,
+    NEqual,
+    Equal,
+    BinaryOp,
+    UnaryOp,
+    Atom,
+)
 from solvers import SATSolver
 from constants import ResultCode
 from solvers.theories.PropositionalTheory import PropositionalTheory
-from bool_transforms.process_cnf import to_abstract_cnf_conjunction, \
-    to_equalities_with_no_negations_args
+from bool_transforms.process_cnf import (
+    to_abstract_cnf_conjunction,
+    to_equalities_with_no_negations_args,
+)
 
 
 class DPLLT:
@@ -38,8 +49,9 @@ class DPLLT:
         else:
             self.theory = PropositionalTheory()
 
-    def _init_case(self, formula: Union[List[Set[int]], Atom],
-                   to_abstract: bool) -> None:
+    def _init_case(
+        self, formula: Union[List[Set[int]], Atom], to_abstract: bool
+    ) -> None:
         """
         Init the solver case to solve
         :param formula: Either the root of logical formula or
@@ -51,8 +63,11 @@ class DPLLT:
         self.original_formula = formula
         if to_abstract:
             self.smt_formula = self.theory.preprocess(formula)
-            self.cnf_abstraction, self.abstraction_map, self.dummy_map = \
-                to_abstract_cnf_conjunction(self.smt_formula)
+            (
+                self.cnf_abstraction,
+                self.abstraction_map,
+                self.dummy_map,
+            ) = to_abstract_cnf_conjunction(self.smt_formula)
             self.theory.register_abstraction_map(self.abstraction_map)
 
         else:
@@ -77,16 +92,17 @@ class DPLLT:
             clause_id = self.sat_solver.add_clause(clause)
             d_result, suggested_assignment = self.sat_solver.deduce(clause_id)
 
-            if d_result == SATSolver.ResultCode.SAT and\
-                    suggested_assignment is not None:
+            if (
+                d_result == SATSolver.ResultCode.SAT
+                and suggested_assignment is not None
+            ):
                 self._assign_literal(suggested_assignment, clause_id)
 
             elif d_result == ResultCode.CONFLICT:
                 return ResultCode.UNSAT
         return ResultCode.UNDECIDED
 
-    def _assign_literal(self, literal: int, antecedent_id: Optional[int])\
-            -> None:
+    def _assign_literal(self, literal: int, antecedent_id: Optional[int]) -> None:
         """
         Updates both SAT solver and theory solver about an assignment
         :param literal: Int representing the literal to be assigned to True
@@ -97,8 +113,7 @@ class DPLLT:
         self.sat_solver.assign_literal(literal, antecedent_id)
         self.theory.process_assignment(literal)
 
-    def _handle_conflict(self, start_set_clause: Optional[Set[int]])\
-            -> ResultCode:
+    def _handle_conflict(self, start_set_clause: Optional[Set[int]]) -> ResultCode:
         """
         Handle a conflict situation on both SAT solver and theory solver,
         restoring their states and learn a new clause to reduce the searching
@@ -111,8 +126,7 @@ class DPLLT:
         if self.sat_solver.d_level == 0:
             return ResultCode.UNSAT
 
-        new_set_clause, new_d_level = self.sat_solver.resolve_conflict(
-            start_set_clause)
+        new_set_clause, new_d_level = self.sat_solver.resolve_conflict(start_set_clause)
         new_partial_assignment = self.sat_solver.backjump(new_d_level)
         self.theory.conflict_recovery(new_partial_assignment)
 
@@ -171,8 +185,7 @@ class DPLLT:
         :return: ResultCode at the end
         """
         bcp_step_result = self._bcp_step()
-        while bcp_step_result not in (None, ResultCode.SAT,
-                                      ResultCode.CONFLICT):
+        while bcp_step_result not in (None, ResultCode.SAT, ResultCode.CONFLICT):
             bcp_step_result = self._bcp_step()
 
         if bcp_step_result == ResultCode.CONFLICT:
@@ -213,8 +226,9 @@ class DPLLT:
 
         return atom
 
-    def _get_all_original_equalities_helper(self, formula: Atom,
-                                            equalities_set: Set[Equal]) -> None:
+    def _get_all_original_equalities_helper(
+        self, formula: Atom, equalities_set: Set[Equal]
+    ) -> None:
         """
         A recursive helper function to extract from the given formula all
         the equalities and equalities which are negations
@@ -223,15 +237,12 @@ class DPLLT:
         :param equalities_set: A set to append equalities found
         """
         if isinstance(formula, BinaryOp):
-            self._get_all_original_equalities_helper(formula.left,
-                                                     equalities_set)
+            self._get_all_original_equalities_helper(formula.left, equalities_set)
 
-            self._get_all_original_equalities_helper(formula.right,
-                                                     equalities_set)
+            self._get_all_original_equalities_helper(formula.right, equalities_set)
 
         elif isinstance(formula, UnaryOp):
-            self._get_all_original_equalities_helper(formula.item,
-                                                     equalities_set)
+            self._get_all_original_equalities_helper(formula.item, equalities_set)
 
         elif isinstance(formula, Func):
             for arg in formula.args:
@@ -240,8 +251,7 @@ class DPLLT:
                 elif isinstance(arg, NEqual):
                     equalities_set.add(Equal(arg.left, arg.right))
                 elif isinstance(arg, Func):
-                    self._get_all_original_equalities_helper(arg,
-                                                             equalities_set)
+                    self._get_all_original_equalities_helper(arg, equalities_set)
 
         elif isinstance(formula, Equal):
             equalities_set.add(formula)
@@ -256,8 +266,9 @@ class DPLLT:
         :return: A set of all original equalities in the original formula
         """
         all_original_equalities = set()
-        self._get_all_original_equalities_helper(self.original_formula,
-                                                 all_original_equalities)
+        self._get_all_original_equalities_helper(
+            self.original_formula, all_original_equalities
+        )
         return all_original_equalities
 
     def _assignment_to_original_form(self) -> Dict[Union[Atom, int], bool]:
@@ -275,8 +286,7 @@ class DPLLT:
                     assignment_map[self.abstraction_map[lit_int]] = True
                 else:
                     assignment_map[self.abstraction_map[-lit_int]] = False
-            assignment_map = self.theory.to_pre_theory_assignment(
-                assignment_map)
+            assignment_map = self.theory.to_pre_theory_assignment(assignment_map)
 
             # replace to original equalities with negated args
             all_original_equalities = self._get_all_original_equalities()
@@ -311,9 +321,9 @@ class DPLLT:
                     assignment_map[-lit_int] = False
             return assignment_map
 
-    def solve(self, formula: Union[List[Set[int]], Atom],
-              to_abstract: bool = True) \
-            -> Tuple[ResultCode, Optional[Dict[Union[int, Atom], bool]]]:
+    def solve(
+        self, formula: Union[List[Set[int]], Atom], to_abstract: bool = True
+    ) -> Tuple[ResultCode, Optional[Dict[Union[int, Atom], bool]]]:
         """
         Solve the given formula using this DPLLT solver
         :param formula: Either root of logical formula or list of sets of ints
@@ -327,8 +337,7 @@ class DPLLT:
         if self._register_clauses(self.cnf_abstraction) == ResultCode.UNSAT:
             return ResultCode.UNSAT, None
 
-        if self._confront_with_theory(handle_conflict=False) == \
-                ResultCode.UNSAT:
+        if self._confront_with_theory(handle_conflict=False) == ResultCode.UNSAT:
             return ResultCode.UNSAT, None
 
         while self.sat_solver.has_unsat_clauses():
@@ -365,11 +374,11 @@ class DPLLT:
         return ResultCode.SAT, original_form_assignment
 
 
-class DPLL (DPLLT):
+class DPLL(DPLLT):
     def __init__(self) -> None:
         super(DPLL, self).__init__()
 
-    def solve(self, formula: Union[List[Set[int]], Atom],
-              to_abstract: bool = True) \
-            -> Tuple[ResultCode, Optional[Dict[Union[int, Atom], bool]]]:
+    def solve(
+        self, formula: Union[List[Set[int]], Atom], to_abstract: bool = True
+    ) -> Tuple[ResultCode, Optional[Dict[Union[int, Atom], bool]]]:
         return super(DPLL, self).solve(formula, to_abstract)

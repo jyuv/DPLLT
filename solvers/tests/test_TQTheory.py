@@ -10,24 +10,51 @@ parser = Parser()
 theory_with_negatives = TQTheory(support_negative_vars=True)
 theory_without_negatives = TQTheory(support_negative_vars=False)
 
-regular_case_map = {1: Geq(np.array([1, 0]), 6),
-                    2: Geq(np.array([0, 1]), 6),
-                    3: Geq(np.array([1, 1]), 11),
-                    -1: Less(np.array([1, 0]), 6),
-                    -2: Less(np.array([0, 1]), 6),
-                    -3: Less(np.array([1, 1]), 11)}
+regular_case_map = {
+    1: Geq(np.array([1, 0]), 6),
+    2: Geq(np.array([0, 1]), 6),
+    3: Geq(np.array([1, 1]), 11),
+    -1: Less(np.array([1, 0]), 6),
+    -2: Less(np.array([0, 1]), 6),
+    -3: Less(np.array([1, 1]), 11),
+}
 
 # case in which the result can depend on whether negative vars are supported
-special_case_map = {1: Geq(np.array([-1, -1]), -3),
-                    2: Geq(np.array([-2, 1]), 5),
-                    -1: Less(np.array([-1, -1]), -3),
-                    -2: Less(np.array([-2, 1]), 5)}
+special_case_map = {
+    1: Geq(np.array([-1, -1]), -3),
+    2: Geq(np.array([-2, 1]), 5),
+    -1: Less(np.array([-1, -1]), -3),
+    -2: Less(np.array([-2, 1]), 5),
+}
 
-regular_all_seqs = {tuple(), (1, ), (2, ), (3, ), (-1, ), (-2, ), (-3, ),
-                    (1, 2), (1, 3), (2, 3), (1, -2), (1, -3), (2, -3),
-                    (-1, 2), (-1, 3), (-2, 3), (-1, -2), (-1, -3), (-2, -3),
-                    (1, 2, -3), (1, -2, 3), (-1, 2, 3),
-                    (1, -2, -3), (-1, 2, -3), (1, 2, 3), (-1, -2, -3)}
+regular_all_seqs = {
+    tuple(),
+    (1,),
+    (2,),
+    (3,),
+    (-1,),
+    (-2,),
+    (-3,),
+    (1, 2),
+    (1, 3),
+    (2, 3),
+    (1, -2),
+    (1, -3),
+    (2, -3),
+    (-1, 2),
+    (-1, 3),
+    (-2, 3),
+    (-1, -2),
+    (-1, -3),
+    (-2, -3),
+    (1, 2, -3),
+    (1, -2, 3),
+    (-1, 2, 3),
+    (1, -2, -3),
+    (-1, 2, -3),
+    (1, 2, 3),
+    (-1, -2, -3),
+}
 
 regular_invalid_seqs = {(1, 2, -3)}
 regular_valid_seqs = regular_all_seqs.difference(regular_invalid_seqs)
@@ -75,37 +102,43 @@ def test_no_t_propagations_with_negatives(assignments_seq):
         assert theory_with_negatives.pop_t_propagation() is None
 
 
-@pytest.mark.parametrize("formula_text", [
-    "m < 3",
-    "m >= 3",
-    "50 < 60",
-    "80 >= 10",
-    "(a & b) < 50",
-    "[1, 2] < a80",
-    "[1, 2] >= -80a"
-    "[1, -1] >= a"
-    "[1, -1] < f(a)",
-    "a = 5",
-    "5 = a",
-    "5 = 5",
-    "a != 5",
-    "5 != a",
-    "5 != 5",
-    "[1, 2] = a",
-    "[1, 1] != a"
-], ids=repr)
+@pytest.mark.parametrize(
+    "formula_text",
+    [
+        "m < 3",
+        "m >= 3",
+        "50 < 60",
+        "80 >= 10",
+        "(a & b) < 50",
+        "[1, 2] < a80",
+        "[1, 2] >= -80a" "[1, -1] >= a" "[1, -1] < f(a)",
+        "a = 5",
+        "5 = a",
+        "5 = 5",
+        "a != 5",
+        "5 != a",
+        "5 != 5",
+        "[1, 2] = a",
+        "[1, 1] != a",
+    ],
+    ids=repr,
+)
 def test_preprocess_invalid_args(formula_text):
     with pytest.raises(ValueError):
         formula = parser.parse(formula_text)
         theory_with_negatives.preprocess(formula)
 
 
-@pytest.mark.parametrize("formula_text, expected_preprocessed_text", [
-    ("[-1, 0, 1] < -5", "[-1, 0, 1] < -5"),
-    ("[-1, 0, 1] >= -5", "[-1, 0, 1] >= -5"),
-    ("[-1, 0, 1] = -5", "([-1, 0, 1] >= -5) & ([1, 0, -1] >= 5)"),
-    ("[-1, 0, 1] != -5", "!(([-1, 0, 1] >= -5) & ([1, 0, -1] >= 5))")
-], ids=["Less case", "Geq case", "Equality case", "Inequality case"])
+@pytest.mark.parametrize(
+    "formula_text, expected_preprocessed_text",
+    [
+        ("[-1, 0, 1] < -5", "[-1, 0, 1] < -5"),
+        ("[-1, 0, 1] >= -5", "[-1, 0, 1] >= -5"),
+        ("[-1, 0, 1] = -5", "([-1, 0, 1] >= -5) & ([1, 0, -1] >= 5)"),
+        ("[-1, 0, 1] != -5", "!(([-1, 0, 1] >= -5) & ([1, 0, -1] >= 5))"),
+    ],
+    ids=["Less case", "Geq case", "Equality case", "Inequality case"],
+)
 def test_preprocess_valid_args(formula_text, expected_preprocessed_text):
     formula = parser.parse(formula_text)
     expected_preprocessed = parser.parse(expected_preprocessed_text)
@@ -160,14 +193,10 @@ def test_conflict_recovery_to_sat():
     assert theory_with_negatives.assignment == {1, -2}
     assert theory_without_negatives.assignment == {1, -2}
 
-    assert np.array_equal(theory_with_negatives.A,
-                          np.array([[-1, 1, 0, 0, 0],
-                                    [0, 0, 1, -1, 1]])
-                          )
-    assert np.array_equal(theory_without_negatives.A,
-                          np.array([[-1, 0, 0],
-                                    [0, 1, 1]])
-                          )
+    assert np.array_equal(
+        theory_with_negatives.A, np.array([[-1, 1, 0, 0, 0], [0, 0, 1, -1, 1]])
+    )
+    assert np.array_equal(theory_without_negatives.A, np.array([[-1, 0, 0], [0, 1, 1]]))
 
     expected_b = np.array([-6, 6]).reshape((2, 1))
     assert np.array_equal(theory_with_negatives.b, expected_b)
@@ -213,15 +242,19 @@ def test_unsat_assignments_negatives_dependent(assignments_seq):
     assert theory_without_negatives.analyze_satisfiability() == unsat_result
 
 
-@pytest.mark.parametrize("formula_str", [
-    "[1, 2] < [1, 2]",
-    "3 >= 2",
-    "3 = 4",
-    "[1, 2] = [1, 2]",
-    "5 != 3",
-    "[1, 2] != [2, 1]",
-    "([1, 2, 3] < 5) -> (([1, 1] = 5) & ([1, -1] != [1]))"
-], ids=repr)
+@pytest.mark.parametrize(
+    "formula_str",
+    [
+        "[1, 2] < [1, 2]",
+        "3 >= 2",
+        "3 = 4",
+        "[1, 2] = [1, 2]",
+        "5 != 3",
+        "[1, 2] != [2, 1]",
+        "([1, 2, 3] < 5) -> (([1, 1] = 5) & ([1, -1] != [1]))",
+    ],
+    ids=repr,
+)
 def test_invalid_args(formula_str):
     formula = parser.parse(formula_str)
     with pytest.raises(ValueError):
@@ -231,19 +264,21 @@ def test_invalid_args(formula_str):
 equalities_raw_strs = [
     "[3, 1] = 5",
     "[3, 1] != 5",
-    "([1, 1] < 2) & (([1, 2] >= 5) | ([3, 1] = 5))"
+    "([1, 1] < 2) & (([1, 2] >= 5) | ([3, 1] = 5))",
 ]
 
 equalities_preprocessed_strs = [
     "([3, 1] >= 5) & ([-3, -1] >= -5)",
     "!(([3, 1] >= 5) & ([-3, -1] >= -5))",
-    "([1, 1] < 2) & (([1, 2] >= 5) | (([3, 1] >= 5) & ([-3, -1] >= -5)))"
+    "([1, 1] < 2) & (([1, 2] >= 5) | (([3, 1] >= 5) & ([-3, -1] >= -5)))",
 ]
 
 
-@pytest.mark.parametrize("formula_str, expected_formula_str",
-                         zip(equalities_raw_strs, equalities_preprocessed_strs),
-                         ids=equalities_raw_strs)
+@pytest.mark.parametrize(
+    "formula_str, expected_formula_str",
+    zip(equalities_raw_strs, equalities_preprocessed_strs),
+    ids=equalities_raw_strs,
+)
 def test_preprocess_equalities(formula_str, expected_formula_str):
     formula = parser.parse(formula_str)
     expected_formula = parser.parse(expected_formula_str)

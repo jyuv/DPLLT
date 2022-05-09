@@ -7,8 +7,19 @@ method.
 
 """
 
-from parsing.logical_blocks import Atom, Equiv, Imply, BinaryOp, UnaryOp,\
-    Negate, Or, Equal, NEqual, Less, Geq
+from parsing.logical_blocks import (
+    Atom,
+    Equiv,
+    Imply,
+    BinaryOp,
+    UnaryOp,
+    Negate,
+    Or,
+    Equal,
+    NEqual,
+    Less,
+    Geq,
+)
 
 
 def _reduce_to_basic(node: Atom) -> Atom:

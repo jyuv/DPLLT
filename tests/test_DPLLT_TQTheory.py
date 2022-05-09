@@ -19,7 +19,7 @@ simple_cases_strs = [
     "([-1, -1] >= -3) & ([-2, 1] >= 5)",
     "([-2, -3, -1] >= -5) & (([-4, -1, -2] >= -11) & ([-3, -4, -2] >= -8))",
     "([-3, -2, -1, -4] >= -225) & (([-1, -1, -1, -1] >= -117) & "
-    "([-4, -3, -3, -4] >= -420))"
+    "([-4, -3, -3, -4] >= -420))",
 ]
 
 expected_results_codes_with_negatives = [
@@ -44,10 +44,11 @@ RESULT_CODE_LOC = 0
 ASSIGNMENT_LOC = 1
 
 
-@pytest.mark.parametrize("formula_str, expected_result_code",
-                         zip(simple_cases_strs,
-                             expected_results_codes_with_negatives),
-                         ids=simple_cases_strs)
+@pytest.mark.parametrize(
+    "formula_str, expected_result_code",
+    zip(simple_cases_strs, expected_results_codes_with_negatives),
+    ids=simple_cases_strs,
+)
 def test_simple_cases_with_negatives(formula_str, expected_result_code):
     formula = parser.parse(formula_str)
     result_with_negatives = solver_with_negatives.solve(formula)
@@ -60,10 +61,11 @@ def test_simple_cases_with_negatives(formula_str, expected_result_code):
         assert verify_unabstracted_assignment(formula, assignment)
 
 
-@pytest.mark.parametrize("formula_str, expected_result_code",
-                         zip(simple_cases_strs,
-                             expected_results_codes_without_negatives),
-                         ids=simple_cases_strs)
+@pytest.mark.parametrize(
+    "formula_str, expected_result_code",
+    zip(simple_cases_strs, expected_results_codes_without_negatives),
+    ids=simple_cases_strs,
+)
 def test_simple_cases_without_negatives(formula_str, expected_result_code):
     formula = parser.parse(formula_str)
     result_without_negatives = solver_without_negatives.solve(formula)
@@ -88,16 +90,9 @@ def test_big_case():
     l8 = parser.parse("[0, 0, 1, 0, 3, -1, 0, 0] < 246")
 
     formula = Imply(
-        And(
-            And(
-                Or(And(l1, l2), l3),
-                Negate(l4)),
-            Or(
-                And(Negate(l2), Or(l1, l5)),
-                l6)),
-        Or(
-            Or(l7, l8),
-            And(l1, l4)))
+        And(And(Or(And(l1, l2), l3), Negate(l4)), Or(And(Negate(l2), Or(l1, l5)), l6)),
+        Or(Or(l7, l8), And(l1, l4)),
+    )
 
     res_with_negatives = solver_with_negatives.solve(formula)
     res_without_negatives = solver_without_negatives.solve(formula)
@@ -108,7 +103,5 @@ def test_big_case():
     with_negatives_assignment = res_with_negatives[ASSIGNMENT_LOC]
     without_negatives_assignment = res_without_negatives[ASSIGNMENT_LOC]
 
-    assert verify_unabstracted_assignment(formula,
-                                          with_negatives_assignment)
-    assert verify_unabstracted_assignment(formula,
-                                          without_negatives_assignment)
+    assert verify_unabstracted_assignment(formula, with_negatives_assignment)
+    assert verify_unabstracted_assignment(formula, without_negatives_assignment)

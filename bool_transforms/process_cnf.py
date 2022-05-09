@@ -11,11 +11,22 @@ and functions arguments.
 """
 
 from typing import List, Dict, Set, Union, Tuple
-from parsing.logical_blocks import Var, Atom, BinaryOp, UnaryOp, Or, And,\
-    Negate, NEqual, Equal, Func, Less, Geq
+from parsing.logical_blocks import (
+    Var,
+    Atom,
+    BinaryOp,
+    UnaryOp,
+    Or,
+    And,
+    Negate,
+    NEqual,
+    Equal,
+    Func,
+    Less,
+    Geq,
+)
 
-from bool_transforms.tseitin_transform import tseitin_transform,\
-    DummyVarsTracker
+from bool_transforms.tseitin_transform import tseitin_transform, DummyVarsTracker
 
 
 def get_nested_literals(node: Atom, output_set: Set[Atom]) -> None:
@@ -64,8 +75,7 @@ def _create_literals_mapping(literals: Set[Atom]) -> Dict[Atom, int]:
     """
     lits_encountered = dict()  # dict that will be used as an ordered set
     for lit in literals:
-        if isinstance(lit, Var) or isinstance(lit, Func) or isinstance(lit,
-                                                                       Equal):
+        if isinstance(lit, Var) or isinstance(lit, Func) or isinstance(lit, Equal):
             lits_encountered[lit] = None
         elif isinstance(lit, Negate):
             if isinstance(lit.item, Less):
@@ -78,8 +88,7 @@ def _create_literals_mapping(literals: Set[Atom]) -> Dict[Atom, int]:
             lits_encountered[Geq(lit.left, lit.right)] = None
 
     lits_encountered = list(lits_encountered.keys())
-    mapping = {old_name: idx + 1 for (idx, old_name) in
-               enumerate(lits_encountered)}
+    mapping = {old_name: idx + 1 for (idx, old_name) in enumerate(lits_encountered)}
     for lit in lits_encountered:
         if isinstance(lit, Var) or isinstance(lit, Func):
             mapping[Negate(lit)] = -mapping[lit]
@@ -151,10 +160,12 @@ def _remove_negations_in_eqs(cnf_conjunction: List[Atom]) -> List[Atom]:
     return new_clauses
 
 
-def _remove_negations_in_func_args_helper(f: Atom,
-                                          to_add_neqs: Dict[NEqual, None],
-                                          dvar_tracker: DummyVarsTracker,
-                                          dummy_map: Dict[Var, Negate]) -> Atom:
+def _remove_negations_in_func_args_helper(
+    f: Atom,
+    to_add_neqs: Dict[NEqual, None],
+    dvar_tracker: DummyVarsTracker,
+    dummy_map: Dict[Var, Negate],
+) -> Atom:
     """
     Recursive helper for removing negations in functions arguments
     :param f: root of logical formula to be processed
@@ -165,15 +176,18 @@ def _remove_negations_in_func_args_helper(f: Atom,
     :return: The root of the processed logical formula
     """
     if isinstance(f, BinaryOp):
-        f.left = _remove_negations_in_func_args_helper(f.left, to_add_neqs,
-                                                       dvar_tracker, dummy_map)
-        f.right = _remove_negations_in_func_args_helper(f.right, to_add_neqs,
-                                                        dvar_tracker, dummy_map)
+        f.left = _remove_negations_in_func_args_helper(
+            f.left, to_add_neqs, dvar_tracker, dummy_map
+        )
+        f.right = _remove_negations_in_func_args_helper(
+            f.right, to_add_neqs, dvar_tracker, dummy_map
+        )
         return f
 
     elif isinstance(f, UnaryOp):
-        f.item = _remove_negations_in_func_args_helper(f.item, to_add_neqs,
-                                                       dvar_tracker, dummy_map)
+        f.item = _remove_negations_in_func_args_helper(
+            f.item, to_add_neqs, dvar_tracker, dummy_map
+        )
         return f
 
     elif isinstance(f, Func):
@@ -186,9 +200,9 @@ def _remove_negations_in_func_args_helper(f: Atom,
                 arg = new_var
 
             elif isinstance(arg, Func):
-                arg = _remove_negations_in_func_args_helper(arg, to_add_neqs,
-                                                            dvar_tracker,
-                                                            dummy_map)
+                arg = _remove_negations_in_func_args_helper(
+                    arg, to_add_neqs, dvar_tracker, dummy_map
+                )
             new_args.append(arg)
         return Func(f.name, new_args)
 
@@ -196,8 +210,9 @@ def _remove_negations_in_func_args_helper(f: Atom,
         return f
 
 
-def _remove_negations_in_func_args(tseitin_clauses: List[Atom]) ->\
-        Tuple[List[Atom], Dict[Var, NEqual]]:
+def _remove_negations_in_func_args(
+    tseitin_clauses: List[Atom],
+) -> Tuple[List[Atom], Dict[Var, NEqual]]:
     """
     Removes negations from functions args in each of the given clauses
     :param tseitin_clauses: List of roots of formulas, each representing
@@ -212,7 +227,8 @@ def _remove_negations_in_func_args(tseitin_clauses: List[Atom]) ->\
     for i in range(len(tseitin_clauses)):
         cur_cl = tseitin_clauses[i]
         tseitin_clauses[i] = _remove_negations_in_func_args_helper(
-            cur_cl, to_add_neqs, dummy_var_tracker, dummy_map)
+            cur_cl, to_add_neqs, dummy_var_tracker, dummy_map
+        )
 
     to_add_neqs = list(to_add_neqs.keys())
     tseitin_clauses.extend(to_add_neqs)
@@ -220,8 +236,9 @@ def _remove_negations_in_func_args(tseitin_clauses: List[Atom]) ->\
     return tseitin_clauses, dummy_map
 
 
-def _cnf_conjunction_to_ints(cnf_conjunction: List[Atom]) ->\
-        Tuple[List[Set[int]], Dict[Atom, int]]:
+def _cnf_conjunction_to_ints(
+    cnf_conjunction: List[Atom],
+) -> Tuple[List[Set[int]], Dict[Atom, int]]:
     """
     converts a list of logical formulas' roots representing a cnf conjunction
     into a list of sets of ints which is equivalent.
@@ -246,8 +263,9 @@ def _cnf_conjunction_to_ints(cnf_conjunction: List[Atom]) ->\
     return conj_with_ints, lit_mapping
 
 
-def to_abstract_cnf_conjunction(raw_formula: Atom) ->\
-        Tuple[List[Set[int]], Dict[int, Atom], Dict[Var, Atom]]:
+def to_abstract_cnf_conjunction(
+    raw_formula: Atom,
+) -> Tuple[List[Set[int]], Dict[int, Atom], Dict[Var, Atom]]:
     """
     Abstracts a logical formula to a CNF conjunction of clauses where each
     clause is represented by a set of int where each int representing a literal
@@ -269,8 +287,11 @@ def to_abstract_cnf_conjunction(raw_formula: Atom) ->\
     int_cnf_formula, lit_to_int = _cnf_conjunction_to_ints(cnf_conjunction)
 
     # remove trivial clauses
-    int_cnf_formula = [clause for clause in int_cnf_formula if
-                       len({abs(lit) for lit in clause}) == len(clause)]
+    int_cnf_formula = [
+        clause
+        for clause in int_cnf_formula
+        if len({abs(lit) for lit in clause}) == len(clause)
+    ]
 
     abstraction_map = {v: k for (k, v) in lit_to_int.items()}
 

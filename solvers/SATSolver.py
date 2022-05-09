@@ -114,8 +114,8 @@ class ImplicationNode:
     """
     Node of Implication graph used for backjump
     """
-    def __init__(self, int_lit: int, decision_level: int, antecedent: int)\
-            -> None:
+
+    def __init__(self, int_lit: int, decision_level: int, antecedent: int) -> None:
         self.d_level = decision_level
         self.int_lit = int_lit
         self.antecedent = antecedent
@@ -126,6 +126,7 @@ class ImplicationGraph:
     A graph to represent the implication order of assignment done by the
     SAT solver.
     """
+
     def __init__(self) -> None:
         self.int_lit_to_node = dict()
         self.d_level_to_int_lits = defaultdict(list)
@@ -133,9 +134,9 @@ class ImplicationGraph:
     def __repr__(self) -> str:
         return repr(self.int_lit_to_node)
 
-    def add_node(self, int_lit: int, decision_level: int,
-                 antecedent_id: Optional[int])\
-            -> None:
+    def add_node(
+        self, int_lit: int, decision_level: int, antecedent_id: Optional[int]
+    ) -> None:
         """
         Add implication node to the graph
         :param int_lit: int representing the literal the node represents
@@ -197,8 +198,9 @@ class Solver:
         self.d_level = 0
         self.Igraph = ImplicationGraph()
 
-    def _len_clause_absolute_lits_at_d_level(self, set_clause: Set[int],
-                                             decision_level: int) -> int:
+    def _len_clause_absolute_lits_at_d_level(
+        self, set_clause: Set[int], decision_level: int
+    ) -> int:
         """
         Get the number of literals which were assigned to either True/False
         at a certain decision level and are part of a certain clause.
@@ -231,9 +233,9 @@ class Solver:
                 print("returning:", int_lit)
                 return int_lit
 
-    def _resolve_around_literal(self, set_clause1: Set[int],
-                                set_clause2: Set[int],
-                                int_lit: int) -> Set[int]:
+    def _resolve_around_literal(
+        self, set_clause1: Set[int], set_clause2: Set[int], int_lit: int
+    ) -> Set[int]:
         """
         Get a resolution for 2 clauses containing a conflict around the given
         literal and its negation needing to coexist.
@@ -254,8 +256,9 @@ class Solver:
         print("resolved:", temp_clause)
         return temp_clause
 
-    def _resolve_clauses(self, set_clause1: Set[int], set_clause2: Set[int])\
-            -> Set[int]:
+    def _resolve_clauses(
+        self, set_clause1: Set[int], set_clause2: Set[int]
+    ) -> Set[int]:
         """
         Get a resolution for 2 clauses containing a conflict
         :param set_clause1: A set of ints representing a disjunction of literals
@@ -266,8 +269,7 @@ class Solver:
         """
         for int_lit in set_clause1:
             if -int_lit in set_clause2:
-                return self._resolve_around_literal(set_clause1,
-                                                    set_clause2, int_lit)
+                return self._resolve_around_literal(set_clause1, set_clause2, int_lit)
 
     def _get_second_highest_d_level(self, set_clause: Set[int]) -> int:
         """
@@ -288,8 +290,9 @@ class Solver:
 
         return second_highest_d_level
 
-    def _set_watch_literals_for_clause(self, clause: Clause,
-                                       new_watch_literals: Set[int]) -> None:
+    def _set_watch_literals_for_clause(
+        self, clause: Clause, new_watch_literals: Set[int]
+    ) -> None:
         """
         Set watch literals for a clause (for more information about the concept
         of watch literals see the general notes at the beginning of the file).
@@ -325,8 +328,7 @@ class Solver:
             self.int_lits_to_clauses_ids[int_lit].add(new_clause_id)
         return new_clause_id
 
-    def assign_literal(self, int_lit: int, antecedent_id: Optional[int])\
-            -> None:
+    def assign_literal(self, int_lit: int, antecedent_id: Optional[int]) -> None:
         """
         Assign a literal deduced by the clause with id antecedent
         :param int_lit: The int value representing the literal to assign to True
@@ -339,8 +341,7 @@ class Solver:
         self.assignment.add(int_lit)
         self.bcp_int_lits_queue.append(int_lit)
 
-        self.unsat_clauses.difference_update(
-            self.int_lits_to_clauses_ids[int_lit])
+        self.unsat_clauses.difference_update(self.int_lits_to_clauses_ids[int_lit])
         self.Igraph.add_node(int_lit, self.d_level, antecedent_id)
 
     def unassign_literal(self, int_lit: int) -> None:
@@ -357,8 +358,7 @@ class Solver:
             if clause.evaluate(self.assignment) == ResultCode.UNDECIDED:
                 self.unsat_clauses.add(clause_id)
 
-    def resolve_conflict(self, initial_set_clause: Set[int])\
-            -> Tuple[Set[int], int]:
+    def resolve_conflict(self, initial_set_clause: Set[int]) -> Tuple[Set[int], int]:
         """
         Resolve a conflict appeared in initial_clause
         :param initial_set_clause: A clause where the conflict occurred
@@ -374,18 +374,18 @@ class Solver:
             cur_set_clause = initial_set_clause
 
         cur_d_level = self.d_level
-        while self._len_clause_absolute_lits_at_d_level(cur_set_clause,
-                                                        cur_d_level) > 1:
-            last_assigned_int_lit = self._get_last_assigned_literal(
-                cur_set_clause)
-            last_assigned_node = self.Igraph.int_lit_to_node[
-                last_assigned_int_lit]
+        while (
+            self._len_clause_absolute_lits_at_d_level(cur_set_clause, cur_d_level) > 1
+        ):
+            last_assigned_int_lit = self._get_last_assigned_literal(cur_set_clause)
+            last_assigned_node = self.Igraph.int_lit_to_node[last_assigned_int_lit]
 
             print("last_assigned_node:", last_assigned_node)
             antecedent_id = last_assigned_node.antecedent
             antecedent_set_clause = self.clauses[antecedent_id].set_clause
-            cur_set_clause = self._resolve_clauses(cur_set_clause,
-                                                   antecedent_set_clause)
+            cur_set_clause = self._resolve_clauses(
+                cur_set_clause, antecedent_set_clause
+            )
 
         return cur_set_clause, self._get_second_highest_d_level(cur_set_clause)
 
@@ -444,8 +444,7 @@ class Solver:
         self._set_watch_literals_for_clause(clause, suggested_wl)
         return ResultCode.UNDECIDED, None
 
-    def bcp_step(self) \
-            -> Tuple[Optional[ResultCode], Optional[int], Optional[int]]:
+    def bcp_step(self) -> Tuple[Optional[ResultCode], Optional[int], Optional[int]]:
         """
         Perform a bcp attempt to deduce an assignment. For more on BCP see
         the general notes at the beginning of the file
@@ -490,5 +489,6 @@ class Solver:
                 if (int_lit not in assignment) and (-int_lit not in assignment):
                     int_lit_unsat_clause_count[int_lit] += 1
 
-        return max(int_lit_unsat_clause_count,
-                   key=lambda k: int_lit_unsat_clause_count[k])
+        return max(
+            int_lit_unsat_clause_count, key=lambda k: int_lit_unsat_clause_count[k]
+        )

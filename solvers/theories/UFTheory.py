@@ -33,11 +33,21 @@ from collections.abc import Iterable
 from collections import deque
 from typing import List, Union, Set, Dict, Tuple
 from constants import ResultCode
-from parsing.logical_blocks import Var, Negate, Func, Equal, NEqual, Atom, \
-    UnaryOp, BinaryOp
+from parsing.logical_blocks import (
+    Var,
+    Negate,
+    Func,
+    Equal,
+    NEqual,
+    Atom,
+    UnaryOp,
+    BinaryOp,
+)
 from copy import deepcopy
-from solvers.theories.PropositionalTheory import PropositionalTheory,\
-    PROPOSITIONAL_SUPPORTED_TYPES
+from solvers.theories.PropositionalTheory import (
+    PropositionalTheory,
+    PROPOSITIONAL_SUPPORTED_TYPES,
+)
 
 LiteralExpression = Union[Func, Var, Negate, Equal, NEqual]
 
@@ -45,16 +55,22 @@ UF_SUPPORTED_TYPES = PROPOSITIONAL_SUPPORTED_TYPES + (Func, Equal, NEqual)
 
 
 class TheoryState(object):
-    def __init__(self, graph: nx.DiGraph, unassigned_vars_ints: Set[int],
-                 t_propagations_queue: deque, active_neqs: Set[NEqual]):
+    def __init__(
+        self,
+        graph: nx.DiGraph,
+        unassigned_vars_ints: Set[int],
+        t_propagations_queue: deque,
+        active_neqs: Set[NEqual],
+    ):
         self.graph = graph
         self.unassigned_vars_ints = unassigned_vars_ints
         self.t_propagations_queue = t_propagations_queue
         self.active_neqs = active_neqs
 
 
-def _unique_expressions_helper(expressions_set: Set[LiteralExpression],
-                               cur_expr: LiteralExpression):
+def _unique_expressions_helper(
+    expressions_set: Set[LiteralExpression], cur_expr: LiteralExpression
+):
     if isinstance(cur_expr, Negate):
         cur_expr = cur_expr.item
     expressions_set.add(cur_expr)
@@ -63,8 +79,9 @@ def _unique_expressions_helper(expressions_set: Set[LiteralExpression],
             _unique_expressions_helper(expressions_set, arg)
 
 
-def get_unique_terms(abstract_literals: Iterable[LiteralExpression])\
-        -> Set[LiteralExpression]:
+def get_unique_terms(
+    abstract_literals: Iterable[LiteralExpression],
+) -> Set[LiteralExpression]:
     expressions = set()
     for abs_lit in abstract_literals:
         if isinstance(abs_lit, (Var, Func, Negate)) and abs_lit.is_literal():
@@ -99,8 +116,7 @@ class CongruenceGraph:
 
     def _init_graph(self, terms: Iterable[LiteralExpression]):
         self.graph = nx.DiGraph()
-        nodes_to_add = [(term, {"rep": None, "parents": set()}) for
-                        term in terms]
+        nodes_to_add = [(term, {"rep": None, "parents": set()}) for term in terms]
         self.graph.add_nodes_from(nodes_to_add)
 
         for term in terms:
@@ -109,22 +125,25 @@ class CongruenceGraph:
 
     def get_rep(self, node_atom):
         if node_atom not in self.graph:
-            raise ValueError(f"node with {node_atom} label doesn't exists"
-                             f" in the graph")
+            raise ValueError(
+                f"node with {node_atom} label doesn't exists" f" in the graph"
+            )
 
         if self.graph.nodes[node_atom]["rep"] == node_atom:
             return node_atom
         else:
             return self.get_rep(self.graph.nodes[node_atom]["rep"])
 
-    def _merge_terms_classes(self, t1_elem: LiteralExpression,
-                             t2_elem: LiteralExpression):
+    def _merge_terms_classes(
+        self, t1_elem: LiteralExpression, t2_elem: LiteralExpression
+    ):
         t1_rep, t2_rep = [self.get_rep(atom) for atom in (t1_elem, t2_elem)]
         if t1_rep == t2_rep:
             return tuple(), tuple()
 
-        t1_rep_parents, t2_rep_parents = [self.graph.nodes[elem]["parents"] for
-                                          elem in (t1_rep, t2_rep)]
+        t1_rep_parents, t2_rep_parents = [
+            self.graph.nodes[elem]["parents"] for elem in (t1_rep, t2_rep)
+        ]
         t1_rep_parents_old = t1_rep_parents.copy()
         t2_rep_parents_old = t2_rep_parents.copy()
         t2_rep_parents.update(t1_rep_parents)
@@ -135,8 +154,9 @@ class CongruenceGraph:
 
     def apply_equality(self, left, right):
         if left not in self.graph or right not in self.graph:
-            raise ValueError("At least one of the labels {left}, {right} "
-                             "isn't in the graph")
+            raise ValueError(
+                "At least one of the labels {left}, {right} " "isn't in the graph"
+            )
 
         l_rep_parents, r_rep_parents = self._merge_terms_classes(left, right)
 
@@ -144,9 +164,9 @@ class CongruenceGraph:
             left_args_reps = [self.get_rep(arg) for arg in p_left.args]
             right_args_reps = [self.get_rep(arg) for arg in p_right.args]
 
-            are_same_reps = (left_args_reps == right_args_reps)
-            are_different_args = (p_left.args != p_right.args)
-            are_same_name = (p_left.name == p_right.name)
+            are_same_reps = left_args_reps == right_args_reps
+            are_different_args = p_left.args != p_right.args
+            are_same_name = p_left.name == p_right.name
 
             # check funcs names are the same and all reps of args are aligned
             if are_same_name and are_same_reps and are_different_args:
@@ -191,22 +211,26 @@ class UFTheory(PropositionalTheory):
     def _check_eqs_neqs_args_validity(self, formula):
         if isinstance(formula, (Equal, NEqual)):
             left_arg, right_arg = formula.left, formula.right
-            if not isinstance(left_arg, Atom) or\
-                    not isinstance(right_arg, Atom):
+            if not isinstance(left_arg, Atom) or not isinstance(right_arg, Atom):
 
-                error_msg = f"In UFTheory both {type(formula)} args must" \
-                            f" be atoms. Got " \
-                            f"{type(left_arg)}, {type(right_arg)} instead"
+                error_msg = (
+                    f"In UFTheory both {type(formula)} args must"
+                    f" be atoms. Got "
+                    f"{type(left_arg)}, {type(right_arg)} instead"
+                )
                 raise ValueError(error_msg)
 
             all_args_literals = left_arg.is_literal() and right_arg.is_literal()
-            any_args_eqs_neqs = any([isinstance(arg, (Equal, NEqual))
-                                     for arg in (left_arg, right_arg)])
+            any_args_eqs_neqs = any(
+                [isinstance(arg, (Equal, NEqual)) for arg in (left_arg, right_arg)]
+            )
 
             if (not all_args_literals) or any_args_eqs_neqs:
-                error_msg = f"In UFTheory both {type(formula)} args must" \
-                            f" be literals. Got " \
-                            f"{type(left_arg)}, {type(right_arg)} instead."
+                error_msg = (
+                    f"In UFTheory both {type(formula)} args must"
+                    f" be literals. Got "
+                    f"{type(left_arg)}, {type(right_arg)} instead."
+                )
 
                 raise ValueError(error_msg)
 
@@ -221,8 +245,7 @@ class UFTheory(PropositionalTheory):
         if isinstance(formula, Func):
             for arg in formula.args:
                 if not arg.is_literal():
-                    error_msg = f"Functions args must be literals." \
-                                f" Got {type(arg)}"
+                    error_msg = f"Functions args must be literals." f" Got {type(arg)}"
                     raise ValueError(error_msg)
 
                 elif isinstance(arg, (Equal, NEqual)):
@@ -280,8 +303,9 @@ class UFTheory(PropositionalTheory):
 
         self.graph = CongruenceGraph(self.int_to_literal)
 
-        self.unassigned_ints = set([abs(literal_int) for literal_int
-                                    in self.int_to_literal.keys()])
+        self.unassigned_ints = set(
+            [abs(literal_int) for literal_int in self.int_to_literal.keys()]
+        )
         self.eqs_neqs_ints = self._get_eqs_neqs_ints()
 
         self.active_neqs = set()
@@ -303,29 +327,31 @@ class UFTheory(PropositionalTheory):
         return eqs_neqs_ints
 
     def _get_cur_state_copy(self):
-        return TheoryState(deepcopy(self.graph),
-                           deepcopy(self.unassigned_ints),
-                           deepcopy(self.t_propagations_queue),
-                           deepcopy(self.active_neqs))
+        return TheoryState(
+            deepcopy(self.graph),
+            deepcopy(self.unassigned_ints),
+            deepcopy(self.t_propagations_queue),
+            deepcopy(self.active_neqs),
+        )
 
-    def _restore_properties(self, state: TheoryState,
-                            new_assignment: List[int]):
+    def _restore_properties(self, state: TheoryState, new_assignment: List[int]):
         self.graph = state.graph
         self.unassigned_ints = state.unassigned_vars_ints
         self.t_propagations_queue = state.t_propagations_queue
         self.active_neqs = state.active_neqs
         self.cur_assignment = new_assignment
-        self.assignment_to_state[tuple(self.cur_assignment)] = \
-            self._get_cur_state_copy()
+        self.assignment_to_state[
+            tuple(self.cur_assignment)
+        ] = self._get_cur_state_copy()
 
     def _remove_states_after(self, new_assignment: Tuple[int]):
         remove_from_idx = self.assignments_log.index(new_assignment)
-        assignments_to_remove = self.assignments_log[remove_from_idx + 1:]
+        assignments_to_remove = self.assignments_log[remove_from_idx + 1 :]
 
         for part_assignment in assignments_to_remove:
             # remove key from dict
             self.assignment_to_state.pop(part_assignment, None)
-        self.assignments_log = self.assignments_log[:remove_from_idx + 1]
+        self.assignments_log = self.assignments_log[: remove_from_idx + 1]
 
     def _get_active_neqs_reps_pairs(self):
         active_neqs_reps_pairs = set()
@@ -343,17 +369,20 @@ class UFTheory(PropositionalTheory):
 
         for int_lit in self.unassigned_ints.intersection(self.eqs_neqs_ints):
             eq_lit = self.int_to_literal[int_lit]
-            cur_unassigned_reps = {self.graph.get_rep(x) for x in
-                                   (eq_lit.left, eq_lit.right)}
+            cur_unassigned_reps = {
+                self.graph.get_rep(x) for x in (eq_lit.left, eq_lit.right)
+            }
 
             # check if have the same rep and not yet in propagation queue
-            if (len(cur_unassigned_reps) == 1) and (int_lit not in
-                                                    self.t_propagations_queue):
+            if (len(cur_unassigned_reps) == 1) and (
+                int_lit not in self.t_propagations_queue
+            ):
                 self.t_propagations_queue.append(int_lit)
 
             # if different reps and there is an unassigned neq between them
-            elif (tuple(cur_unassigned_reps) in active_neqs_reps_pairs) and\
-                    (-int_lit not in self.t_propagations_queue):
+            elif (tuple(cur_unassigned_reps) in active_neqs_reps_pairs) and (
+                -int_lit not in self.t_propagations_queue
+            ):
                 self.t_propagations_queue.append(-int_lit)
 
     def _process_eq(self, eq_literal: Equal):
@@ -415,7 +444,7 @@ class UFTheory(PropositionalTheory):
         :param assignment: an assignment to recover the state to
         """
         if isinstance(assignment, set):
-            assignment = self.cur_assignment[:len(assignment)]
+            assignment = self.cur_assignment[: len(assignment)]
         state_to_revert = self.assignment_to_state[tuple(assignment)]
 
         self._restore_properties(state_to_revert, assignment)
@@ -443,8 +472,7 @@ class UFTheory(PropositionalTheory):
                 return True
         return False
 
-    def analyze_satisfiability(self) ->\
-            Tuple[ResultCode, Union[None, Set[int]]]:
+    def analyze_satisfiability(self) -> Tuple[ResultCode, Union[None, Set[int]]]:
         """
         Checks if the current situation is contradicts with the theory or not.
         :return: if contradicts returns (ResultCode.UNSAT, conflict_clause)

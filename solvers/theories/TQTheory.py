@@ -22,10 +22,21 @@ from math import comb
 from typing import Union, Dict
 
 from constants import ResultCode
-from parsing.logical_blocks import Atom, Equal, And, Geq, NEqual, BinaryOp,\
-    UnaryOp, Negate, Less
-from solvers.theories.PropositionalTheory import PropositionalTheory,\
-    PROPOSITIONAL_SUPPORTED_TYPES
+from parsing.logical_blocks import (
+    Atom,
+    Equal,
+    And,
+    Geq,
+    NEqual,
+    BinaryOp,
+    UnaryOp,
+    Negate,
+    Less,
+)
+from solvers.theories.PropositionalTheory import (
+    PropositionalTheory,
+    PROPOSITIONAL_SUPPORTED_TYPES,
+)
 import numpy as np
 from scipy.optimize import linprog
 
@@ -37,21 +48,23 @@ UNBOUNDED_STATUS = 3
 
 def scipy_max_simplex(a, b, c):
     max_dim, min_dim = max(*a.shape), min(a.shape)
-    options = {'maxiter': comb(max_dim + min_dim, min_dim)}
-    return linprog(A_ub=a, b_ub=b, c=-c, options=options,
-                   method="highs")
+    options = {"maxiter": comb(max_dim + min_dim, min_dim)}
+    return linprog(A_ub=a, b_ub=b, c=-c, options=options, method="highs")
 
 
 def _convert_equality(equality: Equal):
     # ax=b <-> [(ax >= b) & (-ax >= -b)]
-    return And(Geq(equality.left, equality.right),
-               Geq(-equality.left, -equality.right))
+    return And(Geq(equality.left, equality.right), Geq(-equality.left, -equality.right))
 
 
 def _convert_inequality(inequality: NEqual):
     # ax!=b <-> ![(ax >= b) & (-ax >= -b)]
-    return Negate(And(Geq(inequality.left, inequality.right),
-                      Geq(-inequality.left, -inequality.right)))
+    return Negate(
+        And(
+            Geq(inequality.left, inequality.right),
+            Geq(-inequality.left, -inequality.right),
+        )
+    )
 
 
 class TQTheory(PropositionalTheory):
@@ -97,12 +110,10 @@ class TQTheory(PropositionalTheory):
             # ax!=b <-> !(the expr above)
             return _convert_inequality(tq_formula)
 
-        elif isinstance(tq_formula, Negate) and isinstance(tq_formula.item,
-                                                           Equal):
+        elif isinstance(tq_formula, Negate) and isinstance(tq_formula.item, Equal):
             return _convert_inequality(tq_formula.item.negate())
 
-        elif isinstance(tq_formula, Negate) and isinstance(tq_formula.item,
-                                                           NEqual):
+        elif isinstance(tq_formula, Negate) and isinstance(tq_formula.item, NEqual):
             return _convert_equality(tq_formula.item.negate())
 
         if not tq_formula.is_literal():
@@ -124,22 +135,23 @@ class TQTheory(PropositionalTheory):
             self._check_args_validity(formula.item)
 
         elif isinstance(formula, (Less, Geq, Equal, NEqual)):
-            if not isinstance(formula.left, np.ndarray) or\
-                    not isinstance(formula.right, int):
+            if not isinstance(formula.left, np.ndarray) or not isinstance(
+                formula.right, int
+            ):
                 left_type, right_type = type(formula.left), type(formula.right)
-                error_msg = f"Types or atom arguments should be np.ndarray," \
-                            f" int. Got {left_type}, {right_type} instead"
+                error_msg = (
+                    f"Types or atom arguments should be np.ndarray,"
+                    f" int. Got {left_type}, {right_type} instead"
+                )
                 raise ValueError(error_msg)
 
     def _register_original_positive_literals(self, formula: Atom):
         if isinstance(formula, (Equal, Geq)):
             self.positive_literals_in_original.add(formula)
         elif isinstance(formula, NEqual):
-            self.positive_literals_in_original.add(Equal(formula.left,
-                                                         formula.right))
+            self.positive_literals_in_original.add(Equal(formula.left, formula.right))
         elif isinstance(formula, Less):
-            self.positive_literals_in_original.add(Geq(formula.left,
-                                                       formula.right))
+            self.positive_literals_in_original.add(Geq(formula.left, formula.right))
 
         elif isinstance(formula, UnaryOp):
             self._register_original_positive_literals(formula.item)
@@ -258,8 +270,9 @@ class TQTheory(PropositionalTheory):
         """
         return None
 
-    def to_pre_theory_assignment(self, assignment_map: Dict[Atom, bool]) -> \
-            Dict[Atom, bool]:
+    def to_pre_theory_assignment(
+        self, assignment_map: Dict[Atom, bool]
+    ) -> Dict[Atom, bool]:
         """
         Converts the assignment map given into an assignment map which its
         literals are in their pre theory processing form. It adds =, !=
@@ -272,9 +285,9 @@ class TQTheory(PropositionalTheory):
             return assignment_map
 
         # adds =, != which were removed during preprocessing
-        eqs_in_original_formula = [lit for lit in
-                                   self.positive_literals_in_original
-                                   if isinstance(lit, Equal)]
+        eqs_in_original_formula = [
+            lit for lit in self.positive_literals_in_original if isinstance(lit, Equal)
+        ]
 
         for eq in eqs_in_original_formula:
             converted_eq = _convert_equality(eq)
@@ -287,8 +300,9 @@ class TQTheory(PropositionalTheory):
                     assignment_map[eq] = False
 
         # removes >=, < that were added in preprocessing and not existed before
-        geqs_in_assignment_map = [k for k in assignment_map.keys() if
-                                  isinstance(k, Geq)]
+        geqs_in_assignment_map = [
+            k for k in assignment_map.keys() if isinstance(k, Geq)
+        ]
 
         for geq in geqs_in_assignment_map:
             if geq not in self.positive_literals_in_original:
