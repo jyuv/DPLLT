@@ -4,7 +4,7 @@ from constants import ResultCode
 from parsing.logical_blocks import Geq, Less
 
 from parsing.parse import Parser
-from theories.TQTheory import TQTheory
+from solvers.theories.TQTheory import TQTheory
 
 parser = Parser()
 theory_with_negatives = TQTheory(support_negative_vars=True)

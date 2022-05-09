@@ -24,7 +24,7 @@ from typing import Union, Dict
 from constants import ResultCode
 from parsing.logical_blocks import Atom, Equal, And, Geq, NEqual, BinaryOp,\
     UnaryOp, Negate, Less
-from theories.PropositionalTheory import PropositionalTheory,\
+from solvers.theories.PropositionalTheory import PropositionalTheory,\
     PROPOSITIONAL_SUPPORTED_TYPES
 import numpy as np
 from scipy.optimize import linprog

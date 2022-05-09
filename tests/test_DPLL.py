@@ -1,6 +1,6 @@
 import pytest
 from constants import ResultCode
-from solvers.DPLLT import DPLL
+from DPLLT import DPLL
 from tests.test_utils import verify_abstracted_assignment
 
 

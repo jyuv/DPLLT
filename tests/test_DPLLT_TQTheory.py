@@ -4,9 +4,9 @@ from constants import ResultCode
 from parsing.logical_blocks import Or, And, Imply, Negate
 from parsing.parse import Parser
 
-from solvers.DPLLT import DPLLT
+from DPLLT import DPLLT
 from tests.test_utils import verify_unabstracted_assignment
-from theories.TQTheory import TQTheory
+from solvers.theories.TQTheory import TQTheory
 
 solver_with_negatives = DPLLT(TQTheory(support_negative_vars=True))
 solver_without_negatives = DPLLT(TQTheory(support_negative_vars=False))

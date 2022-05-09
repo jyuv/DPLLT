@@ -1,10 +1,10 @@
 import pytest
 
-from solvers.DPLLT import DPLLT
+from DPLLT import DPLLT
 from constants import ResultCode
 from parsing.parse import Parser
 from tests.test_utils import verify_unabstracted_assignment
-from theories.UFTheory import UFTheory
+from solvers.theories.UFTheory import UFTheory
 
 
 str_uf1 = "(g(a) = c) & (((f(g(a)) != f(c)) | (g(a) = d)) & (c != d))"

@@ -106,7 +106,8 @@ inequalities.
 ## How To Use?
 The solvers are easy to use and are accessible through two main objects:
 A DPLL solver which only runs the SAT solver and a DPLLT which combines the SAT
-solver with a theory of your choice
+solver with a theory of your choice. Here there will be a few examples of usage
+for more you can check the different scenarios used in the tests.
 
 1. **DPLL Solver** - An object which manages the run of SAT solver. The object
 provides an option to give the solver an input formula that is already in
@@ -117,7 +118,7 @@ SAT solvers (MiniSat, Glucose, etc.).
 
 ```python
 from parsing.parse import Parser
-from solvers.DPLLT import DPLL
+from DPLLT import DPLL
 
 parser = Parser()
 solver = DPLL()
@@ -139,8 +140,8 @@ to the given theory solver.
 
 ```python
 from parsing.parse import Parser
-from theories.UFTheory import UFTheory
-from solvers.DPLLT import DPLLT
+from solvers.theories.UFTheory import UFTheory
+from DPLLT import DPLLT
 
 parser = Parser()
 uf_theory = UFTheory()

@@ -1,6 +1,6 @@
 import pytest
 from parsing.parse import Parser
-from theories.PropositionalTheory import PropositionalTheory
+from solvers.theories.PropositionalTheory import PropositionalTheory
 
 theory = PropositionalTheory()
 parser = Parser()

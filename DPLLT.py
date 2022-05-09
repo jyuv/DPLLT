@@ -25,7 +25,7 @@ from parsing.logical_blocks import Var, Func, Less, Geq, NEqual, Equal, \
     BinaryOp, UnaryOp, Atom
 from solvers import SATSolver
 from constants import ResultCode
-from theories.PropositionalTheory import PropositionalTheory
+from solvers.theories.PropositionalTheory import PropositionalTheory
 from bool_transforms.process_cnf import to_abstract_cnf_conjunction, \
     to_equalities_with_no_negations_args
 

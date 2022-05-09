@@ -36,7 +36,7 @@ from constants import ResultCode
 from parsing.logical_blocks import Var, Negate, Func, Equal, NEqual, Atom, \
     UnaryOp, BinaryOp
 from copy import deepcopy
-from theories.PropositionalTheory import PropositionalTheory,\
+from solvers.theories.PropositionalTheory import PropositionalTheory,\
     PROPOSITIONAL_SUPPORTED_TYPES
 
 LiteralExpression = Union[Func, Var, Negate, Equal, NEqual]

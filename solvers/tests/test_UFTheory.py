@@ -2,7 +2,7 @@ import pytest
 
 from constants import ResultCode
 from parsing.logical_blocks import Negate, Func, Equal, NEqual
-from theories.UFTheory import UFTheory
+from solvers.theories.UFTheory import UFTheory
 from parsing.parse import Parser
 
 parser = Parser()
