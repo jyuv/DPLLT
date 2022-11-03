@@ -8,11 +8,18 @@ A python implementation of DPLLT solver for determining satisfiability of SMT
 problems. The implementation provides a SAT solver using CDCL logic,
 BCP (also known as Unit Propagation) deduction and DLIS decision heuristic,
 in addition to 2 implemented theories - a TQ theory and UF theory.
+
 The DPLLT solver uses the lazy approach to combine the SAT solver and the
 theories solver. In addition, the repository provides a parser to 
 allow multiple input formats and boolean transformation methods such as nnf,
 tseitin, etc. You can either use the DPLLT solver as a whole unit or use
-specific components individually. 
+specific components individually.
+
+**Revised Simplex Side Note** – The TQ theory is based on a revised simplex solver.
+A self-implantation of such solver was originally part of the project but later was
+separated to a different repository.
+It's an efficient implementation which was faster than scipy's
+implementation in the performance tests conducted. You can check it out [here](https://github.com/jyuv/RevisedSimplex).
 
 ## Parser
 The solvers provided accept formulas represented as a tree of logical blocks
